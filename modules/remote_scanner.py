@@ -176,7 +176,8 @@ def _scan_syscalls(ssh: paramiko.SSHClient) -> dict:
 def _parse_proc_net_tcp(raw: str) -> set[int]:
     """Extract LISTEN-state ports from /proc/net/tcp (hex format)."""
     ports: set[int] = set()
-    for line in raw.strip().splitlines()[1:]:
+    lines = raw.strip().splitlines()
+    for line in lines[1:]:
         parts = line.split()
         if len(parts) < 4:
             continue
@@ -195,7 +196,8 @@ def _get_ss_ports(ssh: paramiko.SSHClient) -> set[int]:
     """Get listening ports as reported by `ss -tlnp`."""
     ports: set[int] = set()
     raw = _exec(ssh, "ss -tlnp 2>/dev/null")
-    for line in raw.strip().splitlines()[1:]:
+    lines = raw.strip().splitlines()
+    for line in lines[1:]:
         parts = line.split()
         if len(parts) < 4:
             continue
@@ -308,6 +310,7 @@ def remote_scan(host: str, password: str, user: str = "root",
     try:
         ssh = connect(host, password, user=user, port=port)
     except Exception as exc:
+        print(f"[!] SSH connection failed: {exc}")
         return {
             "status": "error",
             "error":  str(exc),
@@ -349,9 +352,26 @@ def remote_scan(host: str, password: str, user: str = "root",
 
 def _print_result(result: dict) -> None:
     """Pretty-print a scan result to the terminal."""
-    risk = result.get("risk_level", "error").upper()
+    # ── Error case: SSH connection failed ────────────────────────────────
+    if result.get("status") == "error":
+        print("\n" + "=" * 60)
+        print(f"  Host       : {result.get('host', 'N/A')}")
+        print(f"  Risk level : \033[91mERROR\033[0m")
+        print(f"  Reason     : {result.get('error', 'Unknown error')}")
+        print("=" * 60)
+        print()
+        print("  Troubleshooting tips:")
+        print("    • Check the IP is reachable:  ping", result.get('host','?'))
+        print("    • Check SSH is running:        ssh <user>@<host>")
+        print("    • Wrong username? pass --user ubuntu  (or kali, etc.)")
+        print("    • Wrong password? double-check credentials")
+        print("    • Firewall? make sure port 22 is open on the target")
+        print()
+        return
+
+    risk = result.get("risk_level", "unknown").upper()
     colours = {"CLEAN": "\033[92m", "SUSPICIOUS": "\033[93m",
-               "INFECTED": "\033[91m", "ERROR": "\033[91m"}
+               "INFECTED": "\033[91m"}
     reset  = "\033[0m"
     colour = colours.get(risk, "")
 
@@ -366,7 +386,6 @@ def _print_result(result: dict) -> None:
         icon = "✘" if mod["threat_count"] else "✔"
         print(f"\n  [{icon}] {mod_name}: {mod['summary']}")
         for finding in mod.get("findings", []):
-            # Print the most informative field
             detail = finding.get("detail", "")
             pid    = finding.get("pid", "")
             path   = finding.get("path", "")
@@ -378,24 +397,33 @@ def _print_result(result: dict) -> None:
 
 
 if __name__ == "__main__":
-    if len(sys.argv) < 3:
-        print(f"Usage: python3 {sys.argv[0]} <HOST> <PASSWORD> [USER] [PORT]")
-        print(f"Example: python3 {sys.argv[0]} 192.168.1.50 toor")
-        sys.exit(1)
+    import argparse
+    p = argparse.ArgumentParser(
+        description="RootSentry — remote rootkit scanner",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=(
+            "Examples:\n"
+            "  python3 modules/remote_scanner.py 192.168.25.54 Achraf123\n"
+            "  python3 modules/remote_scanner.py 192.168.25.54 Achraf123 --user ubuntu\n"
+            "  python3 modules/remote_scanner.py 192.168.25.54 Achraf123 --user kali --port 2222\n"
+        ),
+    )
+    p.add_argument("host",     help="Target IP or hostname")
+    p.add_argument("password", help="SSH password")
+    p.add_argument("--user",   default="root",
+                   help="SSH username (default: root). Try 'ubuntu' or 'kali' if root fails.")
+    p.add_argument("--port",   type=int, default=22, help="SSH port (default: 22)")
+    p.add_argument("--no-save", action="store_true", help="Don't save JSON output to disk")
+    args = p.parse_args()
 
-    _host     = sys.argv[1]
-    _password = sys.argv[2]
-    _user     = sys.argv[3] if len(sys.argv) > 3 else "root"
-    _port     = int(sys.argv[4]) if len(sys.argv) > 4 else 22
-
-    result = remote_scan(_host, _password, user=_user, port=_port)
+    result = remote_scan(args.host, args.password, user=args.user, port=args.port)
     _print_result(result)
 
-    # Also dump JSON for piping / report generation
-    out_file = f"remote_scan_{_host.replace('.', '_')}.json"
-    try:
-        with open(out_file, "w") as fh:
-            json.dump(result, fh, indent=2)
-        print(f"[*] Full results saved to {out_file}")
-    except OSError as exc:
-        print(f"[!] Could not save JSON: {exc}")
+    if not args.no_save and result.get("status") != "error":
+        out_file = f"remote_scan_{args.host.replace('.', '_')}.json"
+        try:
+            with open(out_file, "w") as fh:
+                json.dump(result, fh, indent=2)
+            print(f"[*] Full results saved to {out_file}")
+        except OSError as exc:
+            print(f"[!] Could not save JSON: {exc}")
