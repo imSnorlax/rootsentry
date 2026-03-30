@@ -129,6 +129,7 @@ def _remote_scan(ssh) -> dict:
     """
     Run a lightweight hidden-process check on the remote host.
     We compare /proc PIDs against `ps -e` output over SSH.
+    Kernel threads (PPid=2) and short-lived race-condition PIDs are skipped.
     """
     # Get /proc pids
     _, stdout, _ = ssh.exec_command(
@@ -149,15 +150,49 @@ def _remote_scan(ssh) -> dict:
 
     findings = []
     for pid in hidden:
-        # Try to read cmdline
+        # 1. Re-verify PID still exists (filter race-condition short-lived procs)
+        _, stdout, _ = ssh.exec_command(
+            f"test -d /proc/{pid} && echo yes || echo no"
+        )
+        if stdout.read().decode().strip() != "yes":
+            continue
+
+        # 2. Read /proc/<pid>/status to check PPid
+        _, stdout, _ = ssh.exec_command(
+            f"cat /proc/{pid}/status 2>/dev/null"
+        )
+        status_raw = stdout.read().decode()
+
+        # Skip kernel threads: they have PPid 2 (kthreadd) or no Name
+        ppid = 0
+        name = ""
+        for line in status_raw.splitlines():
+            if line.startswith("PPid:"):
+                try:
+                    ppid = int(line.split()[1])
+                except ValueError:
+                    pass
+            if line.startswith("Name:"):
+                name = line.split(None, 1)[1].strip() if len(line.split()) > 1 else ""
+
+        if ppid == 2:
+            # Kernel thread — not a rootkit hiding a user process
+            continue
+
+        # 3. Get cmdline
         _, stdout, _ = ssh.exec_command(
             f"cat /proc/{pid}/cmdline 2>/dev/null | tr '\\0' ' '"
         )
-        cmdline = stdout.read().decode().strip() or "(unknown)"
-        findings.append(HiddenProcess(pid=pid, cmdline=cmdline,
-                                      reason="hidden from ps (remote)"))
+        cmdline = stdout.read().decode().strip() or name or "(unknown)"
+
+        findings.append(HiddenProcess(
+            pid=pid,
+            cmdline=cmdline,
+            reason=f"hidden from ps (remote) | name={name} ppid={ppid}",
+        ))
 
     return _build_result(findings)
+
 
 
 # ── Shared result builder ────────────────────────────────────────────────────
