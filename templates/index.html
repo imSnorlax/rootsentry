@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>RootSentry — Dashboard</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono&display=swap" rel="stylesheet"/>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --bg:#0a0f1e;--surface:#111827;--card:#1a2236;--border:#1e2d45;
+      --text:#e2e8f0;--muted:#64748b;--accent:#6366f1;
+      --clean:#22c55e;--warn:#f59e0b;--danger:#ef4444;
+    }
+    body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+    /* Nav */
+    nav{
+      background:rgba(17,24,39,.85);backdrop-filter:blur(12px);
+      border-bottom:1px solid var(--border);padding:0 32px;
+      display:flex;align-items:center;justify-content:space-between;height:64px;
+      position:sticky;top:0;z-index:100;
+    }
+    .brand{font-size:1.4rem;font-weight:800;letter-spacing:-0.5px;color:var(--text)}
+    .brand span{color:var(--accent)}
+    nav a{color:var(--muted);text-decoration:none;font-size:.9rem;font-weight:500;
+          padding:6px 14px;border-radius:8px;transition:all .2s}
+    nav a:hover{color:var(--text);background:var(--border)}
+    nav a.active{color:var(--accent);background:#6366f120}
+    .nav-links{display:flex;gap:4px}
+    /* Main layout */
+    main{max-width:1100px;margin:0 auto;padding:40px 24px}
+    /* Hero */
+    .hero{
+      background:linear-gradient(135deg,#1a2236 0%,#0a1628 100%);
+      border:1px solid var(--border);border-radius:20px;padding:40px;
+      margin-bottom:32px;display:flex;align-items:center;justify-content:space-between;
+      position:relative;overflow:hidden;
+    }
+    .hero::before{
+      content:'';position:absolute;top:-60px;right:-60px;
+      width:300px;height:300px;border-radius:50%;
+      background:radial-gradient(circle,#6366f130 0%,transparent 70%);
+    }
+    .hero h1{font-size:2.2rem;font-weight:800;letter-spacing:-1px;line-height:1.1}
+    .hero h1 span{color:var(--accent)}
+    .hero p{color:var(--muted);margin-top:10px;font-size:.95rem}
+    .btn-primary{
+      display:inline-flex;align-items:center;gap:8px;padding:12px 28px;
+      background:var(--accent);color:#fff;border-radius:10px;font-weight:700;
+      text-decoration:none;font-size:.95rem;transition:all .2s;border:none;cursor:pointer;
+      box-shadow:0 0 0 0 #6366f180;
+    }
+    .btn-primary:hover{background:#4f46e5;transform:translateY(-1px);box-shadow:0 4px 20px #6366f140}
+    /* Stats row */
+    .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:32px}
+    .stat-card{
+      background:var(--card);border:1px solid var(--border);border-radius:14px;
+      padding:22px 20px;position:relative;overflow:hidden;transition:transform .2s;
+    }
+    .stat-card:hover{transform:translateY(-2px)}
+    .stat-card .icon{font-size:1.6rem;margin-bottom:10px}
+    .stat-card .value{font-size:2rem;font-weight:800;font-family:'JetBrains Mono',monospace}
+    .stat-card .label{color:var(--muted);font-size:.8rem;margin-top:4px}
+    .stat-card::after{
+      content:'';position:absolute;top:0;left:0;right:0;height:3px;border-radius:14px 14px 0 0;
+    }
+    .stat-card.clean::after{background:var(--clean)}
+    .stat-card.warn::after{background:var(--warn)}
+    .stat-card.danger::after{background:var(--danger)}
+    .stat-card.accent::after{background:var(--accent)}
+    /* Table */
+    .section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+    .section-header h2{font-size:1.1rem;font-weight:700}
+    table{width:100%;border-collapse:collapse}
+    th{text-align:left;padding:10px 16px;color:var(--muted);font-size:.8rem;
+       font-weight:600;letter-spacing:.05em;text-transform:uppercase;
+       background:var(--surface);border-bottom:1px solid var(--border)}
+    td{padding:14px 16px;border-bottom:1px solid var(--border)1a;font-size:.9rem}
+    tr:hover td{background:#ffffff06}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden}
+    .pill{
+      display:inline-flex;align-items:center;gap:6px;padding:3px 12px;
+      border-radius:100px;font-size:.78rem;font-weight:700;
+    }
+    .pill.clean{background:#22c55e20;color:var(--clean)}
+    .pill.suspicious{background:#f59e0b20;color:var(--warn)}
+    .pill.infected{background:#ef444420;color:var(--danger)}
+    .pill.error{background:#94a3b820;color:var(--muted)}
+    .pill.running{background:#6366f120;color:var(--accent)}
+    .dot{width:7px;height:7px;border-radius:50%;background:currentColor;display:inline-block}
+    .mono{font-family:'JetBrains Mono',monospace;font-size:.85rem}
+    .empty{text-align:center;padding:60px;color:var(--muted)}
+    .empty .icon{font-size:3rem;margin-bottom:12px}
+    a.row-link{text-decoration:none;color:inherit}
+    .threat-count{
+      font-family:'JetBrains Mono',monospace;font-weight:700;
+      font-size:.95rem;
+    }
+    .tc-0{color:var(--clean)}
+    .tc-low{color:var(--warn)}
+    .tc-high{color:var(--danger)}
+  </style>
+</head>
+<body>
+<nav>
+  <div class="brand">Root<span>Sentry</span></div>
+  <div class="nav-links">
+    <a href="/" class="active">Dashboard</a>
+    <a href="/scan">New Scan</a>
+    <a href="/logs">Logs</a>
+  </div>
+</nav>
+
+<main>
+  <!-- Hero -->
+  <div class="hero">
+    <div>
+      <h1>Root<span>Sentry</span></h1>
+      <p>Linux rootkit detection &amp; remediation — scan history and live status</p>
+    </div>
+    <a href="/scan" class="btn-primary">
+      <span>⚡</span> New Scan
+    </a>
+  </div>
+
+  <!-- Stats -->
+  {% set total = scans|length %}
+  {% set infected_count = scans|selectattr('risk_level','equalto','infected')|list|length %}
+  {% set suspicious_count = scans|selectattr('risk_level','equalto','suspicious')|list|length %}
+  {% set clean_count = scans|selectattr('risk_level','equalto','clean')|list|length %}
+  <div class="stats">
+    <div class="stat-card accent">
+      <div class="icon">🔍</div>
+      <div class="value">{{ total }}</div>
+      <div class="label">Total Scans</div>
+    </div>
+    <div class="stat-card danger">
+      <div class="icon">🦠</div>
+      <div class="value">{{ infected_count }}</div>
+      <div class="label">Infected</div>
+    </div>
+    <div class="stat-card warn">
+      <div class="icon">⚠️</div>
+      <div class="value">{{ suspicious_count }}</div>
+      <div class="label">Suspicious</div>
+    </div>
+    <div class="stat-card clean">
+      <div class="icon">✅</div>
+      <div class="value">{{ clean_count }}</div>
+      <div class="label">Clean</div>
+    </div>
+  </div>
+
+  <!-- Scan History Table -->
+  <div class="section-header">
+    <h2>Scan History</h2>
+    <a href="/scan" class="btn-primary" style="padding:8px 18px;font-size:.85rem">+ New Scan</a>
+  </div>
+  <div class="card">
+    {% if scans %}
+    <table>
+      <thead>
+        <tr>
+          <th>Target</th>
+          <th>Risk</th>
+          <th>Threats</th>
+          <th>Scan ID</th>
+          <th>Timestamp</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for scan in scans %}
+        {% set risk = scan.get('risk_level','unknown') %}
+        <tr>
+          <td class="mono">{{ scan.get('host','localhost') }}</td>
+          <td>
+            <span class="pill {{ risk }}">
+              <span class="dot"></span>
+              {{ risk.upper() }}
+            </span>
+          </td>
+          <td>
+            {% set tc = scan.get('total_threats',0) %}
+            <span class="threat-count {% if tc == 0 %}tc-0{% elif tc <= 2 %}tc-low{% else %}tc-high{% endif %}">
+              {{ tc }}
+            </span>
+          </td>
+          <td class="mono" style="color:var(--muted);font-size:.8rem">{{ scan.get('_id','—') }}</td>
+          <td style="color:var(--muted);font-size:.85rem">{{ scan.get('timestamp','—') }}</td>
+          <td><a href="/scan/{{ scan.get('_id','') }}" class="btn-primary" style="padding:6px 14px;font-size:.8rem">View →</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty">
+      <div class="icon">🛡️</div>
+      <p>No scans yet. <a href="/scan" style="color:var(--accent)">Run your first scan</a></p>
+    </div>
+    {% endif %}
+  </div>
+</main>
+</body>
+</html>

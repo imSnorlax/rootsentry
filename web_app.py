@@ -1,0 +1,251 @@
+"""
+web_app.py — RootSentry Flask Web Dashboard
+============================================
+Routes:
+  GET  /                     — Dashboard: scan history
+  GET  /scan                 — Trigger a scan (form)
+  POST /scan                 — Run scan (AJAX JSON)
+  GET  /scan/<id>            — Scan detail page
+  GET  /scan/<id>/json       — Scan raw JSON
+  POST /remediate/<id>       — Remediate a scan result
+  GET  /report/<id>          — Download HTML report
+  GET  /logs                 — Log viewer
+  GET  /api/scans            — JSON list of all scans
+"""
+
+from __future__ import annotations
+
+import json
+import os
+import sys
+import glob
+import datetime
+import threading
+import uuid
+import logging
+
+from flask import (Flask, render_template, request, jsonify,
+                   send_file, abort, redirect, url_for)
+
+# ── Ensure project root on path ──────────────────────────────────────────────
+sys.path.insert(0, os.path.dirname(__file__))
+
+from config import FLASK_HOST, FLASK_PORT, FLASK_DEBUG, SECRET_KEY, SCANS_DIR, REPORTS_DIR
+from modules.removal_engine   import remediate_scan
+from modules.report_generator import save_report, generate_html_report
+
+# ── Flask app setup ───────────────────────────────────────────────────────────
+app = Flask(__name__)
+app.secret_key = SECRET_KEY
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    handlers=[
+        logging.StreamHandler(),
+        logging.FileHandler("rootsentry.log", encoding="utf-8"),
+    ],
+)
+log = logging.getLogger("rootsentry")
+
+os.makedirs(SCANS_DIR, exist_ok=True)
+os.makedirs(REPORTS_DIR, exist_ok=True)
+
+# ── In-progress scan tracking ─────────────────────────────────────────────────
+_running_scans: dict[str, dict] = {}   # scan_id -> {"status": ..., "result": ...}
+_lock = threading.Lock()
+
+
+# ── Helpers ───────────────────────────────────────────────────────────────────
+
+def _scan_path(scan_id: str) -> str:
+    return os.path.join(SCANS_DIR, f"{scan_id}.json")
+
+
+def _save_scan(scan_id: str, data: dict) -> None:
+    with open(_scan_path(scan_id), "w", encoding="utf-8") as fh:
+        json.dump(data, fh, indent=2)
+
+
+def _load_scan(scan_id: str) -> dict | None:
+    path = _scan_path(scan_id)
+    if not os.path.exists(path):
+        return None
+    with open(path, encoding="utf-8") as fh:
+        return json.load(fh)
+
+
+def _list_scans() -> list[dict]:
+    scans = []
+    for path in sorted(glob.glob(os.path.join(SCANS_DIR, "*.json")), reverse=True):
+        try:
+            with open(path, encoding="utf-8") as fh:
+                data = json.load(fh)
+            data["_id"] = os.path.splitext(os.path.basename(path))[0]
+            scans.append(data)
+        except Exception:
+            pass
+    return scans
+
+
+def _run_scan_thread(scan_id: str, host: str | None,
+                     password: str | None, user: str, port: int) -> None:
+    """Background thread that runs the full scan."""
+    try:
+        from scanner import run_scan
+        result = run_scan(host=host or None,
+                          password=password or None,
+                          user=user, port=port)
+        result["id"]        = scan_id
+        result["timestamp"] = datetime.datetime.utcnow().isoformat(timespec="seconds") + "Z"
+        _save_scan(scan_id, result)
+        with _lock:
+            _running_scans[scan_id] = {"status": "done", "result": result}
+        log.info("Scan %s complete — %s", scan_id, result.get("risk_level"))
+    except Exception as exc:
+        err = {"status": "error", "id": scan_id, "error": str(exc),
+               "host": host or "localhost",
+               "timestamp": datetime.datetime.utcnow().isoformat()}
+        _save_scan(scan_id, err)
+        with _lock:
+            _running_scans[scan_id] = {"status": "error", "result": err}
+        log.error("Scan %s failed: %s", scan_id, exc)
+
+
+# ── Routes ────────────────────────────────────────────────────────────────────
+
+@app.route("/")
+def index():
+    scans = _list_scans()
+    return render_template("index.html", scans=scans)
+
+
+@app.route("/scan", methods=["GET"])
+def scan_form():
+    return render_template("scan.html")
+
+
+@app.route("/scan", methods=["POST"])
+def scan_trigger():
+    data     = request.get_json(silent=True) or request.form
+    host     = (data.get("host") or "").strip() or None
+    password = (data.get("password") or "").strip() or None
+    user     = (data.get("user") or "root").strip()
+    port     = int(data.get("port") or 22)
+
+    scan_id = str(uuid.uuid4())[:8]
+    with _lock:
+        _running_scans[scan_id] = {"status": "running", "result": None}
+
+    t = threading.Thread(target=_run_scan_thread,
+                         args=(scan_id, host, password, user, port),
+                         daemon=True)
+    t.start()
+    log.info("Scan %s started — target: %s", scan_id, host or "localhost")
+
+    if request.is_json:
+        return jsonify({"scan_id": scan_id, "status": "running"})
+    return redirect(url_for("scan_status_page", scan_id=scan_id))
+
+
+@app.route("/scan/<scan_id>")
+def scan_status_page(scan_id: str):
+    # Check in-memory first
+    with _lock:
+        info = _running_scans.get(scan_id)
+
+    if info and info["status"] == "running":
+        return render_template("scan_running.html", scan_id=scan_id)
+
+    result = _load_scan(scan_id)
+    if result is None:
+        abort(404)
+    return render_template("scan_detail.html", scan=result, scan_id=scan_id)
+
+
+@app.route("/scan/<scan_id>/json")
+def scan_json(scan_id: str):
+    with _lock:
+        info = _running_scans.get(scan_id)
+    if info:
+        return jsonify({"scan_id": scan_id, **info})
+    result = _load_scan(scan_id)
+    if result is None:
+        abort(404)
+    return jsonify(result)
+
+
+@app.route("/remediate/<scan_id>", methods=["POST"])
+def remediate(scan_id: str):
+    result = _load_scan(scan_id)
+    if result is None:
+        abort(404)
+
+    data     = request.get_json(silent=True) or {}
+    host     = result.get("host", "localhost")
+    is_remote = host not in ("localhost", "127.0.0.1", "")
+
+    ssh_client = None
+    if is_remote:
+        password = data.get("password", "")
+        user     = data.get("user", "root")
+        port     = int(data.get("port", 22))
+        if not password:
+            return jsonify({"error": "SSH password required for remote remediation"}), 400
+        try:
+            import paramiko
+            client = paramiko.SSHClient()
+            client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            client.connect(hostname=host, port=port, username=user,
+                           password=password, timeout=10,
+                           allow_agent=False, look_for_keys=False)
+            ssh_client = client
+            log.info("Opened SSH for remediation: %s@%s:%s", user, host, port)
+        except Exception as exc:
+            log.error("SSH connect for remediation failed: %s", exc)
+            return jsonify({"error": f"SSH connection failed: {exc}"}), 500
+
+    try:
+        rem = remediate_scan(result, ssh_client=ssh_client)
+    finally:
+        if ssh_client:
+            ssh_client.close()
+
+    result["remediation"] = rem
+    _save_scan(scan_id, result)
+    log.info("Remediation for scan %s: %s", scan_id, rem["summary"])
+    return jsonify(rem)
+
+
+@app.route("/report/<scan_id>")
+def report(scan_id: str):
+    result = _load_scan(scan_id)
+    if result is None:
+        abort(404)
+    rem  = result.get("remediation")
+    path = save_report(result, rem, fmt="html")
+    return send_file(path, mimetype="text/html",
+                     as_attachment=False)
+
+
+@app.route("/logs")
+def logs_page():
+    lines: list[str] = []
+    try:
+        with open("rootsentry.log", encoding="utf-8") as fh:
+            lines = fh.readlines()[-300:]
+    except FileNotFoundError:
+        pass
+    return render_template("logs.html", lines=lines)
+
+
+@app.route("/api/scans")
+def api_scans():
+    return jsonify(_list_scans())
+
+
+# ── Entry point ───────────────────────────────────────────────────────────────
+
+if __name__ == "__main__":
+    print(f"[*] RootSentry dashboard at http://{FLASK_HOST}:{FLASK_PORT}")
+    app.run(host=FLASK_HOST, port=FLASK_PORT, debug=FLASK_DEBUG)

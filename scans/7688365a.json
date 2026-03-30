@@ -1,0 +1,288 @@
+{
+  "status": "done",
+  "host": "192.168.25.54",
+  "risk_level": "infected",
+  "total_threats": 48,
+  "timestamp": "2026-03-30T10:54:57Z",
+  "modules": {
+    "process_scanner": {
+      "module": "process_scanner",
+      "threat_count": 3,
+      "findings": [
+        {
+          "pid": 4089,
+          "cmdline": "(unknown)",
+          "reason": "hidden from ps (remote)"
+        },
+        {
+          "pid": 4093,
+          "cmdline": "(unknown)",
+          "reason": "hidden from ps (remote)"
+        },
+        {
+          "pid": 4094,
+          "cmdline": "(unknown)",
+          "reason": "hidden from ps (remote)"
+        }
+      ],
+      "summary": "3 hidden process(es) detected."
+    },
+    "syscall_inspector": {
+      "module": "syscall_inspector",
+      "threat_count": 17,
+      "findings": [
+        {
+          "type": "hidden_symbol",
+          "symbol": "audit_log_exit.cold",
+          "addr": "0000000000000000",
+          "detail": "Address zeroed \u2014 likely hidden by rootkit"
+        },
+        {
+          "type": "hidden_symbol",
+          "symbol": "tpacket_rcv.cold",
+          "addr": "0000000000000000",
+          "detail": "Address zeroed \u2014 likely hidden by rootkit"
+        },
+        {
+          "type": "hidden_symbol",
+          "symbol": "__pfx_audit_log_exit",
+          "addr": "0000000000000000",
+          "detail": "Address zeroed \u2014 likely hidden by rootkit"
+        },
+        {
+          "type": "hidden_symbol",
+          "symbol": "audit_log_exit",
+          "addr": "0000000000000000",
+          "detail": "Address zeroed \u2014 likely hidden by rootkit"
+        },
+        {
+          "type": "hidden_symbol",
+          "symbol": "__pfx_tcp4_seq_show",
+          "addr": "0000000000000000",
+          "detail": "Address zeroed \u2014 likely hidden by rootkit"
+        },
+        {
+          "type": "hidden_symbol",
+          "symbol": "tcp4_seq_show",
+          "addr": "0000000000000000",
+          "detail": "Address zeroed \u2014 likely hidden by rootkit"
+        },
+        {
+          "type": "hidden_symbol",
+          "symbol": "__pfx___packet_rcv_has_room",
+          "addr": "0000000000000000",
+          "detail": "Address zeroed \u2014 likely hidden by rootkit"
+        },
+        {
+          "type": "hidden_symbol",
+          "symbol": "__packet_rcv_has_room",
+          "addr": "0000000000000000",
+          "detail": "Address zeroed \u2014 likely hidden by rootkit"
+        },
+        {
+          "type": "hidden_symbol",
+          "symbol": "__pfx_packet_rcv_spkt",
+          "addr": "0000000000000000",
+          "detail": "Address zeroed \u2014 likely hidden by rootkit"
+        },
+        {
+          "type": "hidden_symbol",
+          "symbol": "packet_rcv_spkt",
+          "addr": "0000000000000000",
+          "detail": "Address zeroed \u2014 likely hidden by rootkit"
+        },
+        {
+          "type": "hidden_symbol",
+          "symbol": "__pfx_packet_rcv_fanout",
+          "addr": "0000000000000000",
+          "detail": "Address zeroed \u2014 likely hidden by rootkit"
+        },
+        {
+          "type": "hidden_symbol",
+          "symbol": "packet_rcv_fanout",
+          "addr": "0000000000000000",
+          "detail": "Address zeroed \u2014 likely hidden by rootkit"
+        },
+        {
+          "type": "hidden_symbol",
+          "symbol": "__pfx_packet_rcv",
+          "addr": "0000000000000000",
+          "detail": "Address zeroed \u2014 likely hidden by rootkit"
+        },
+        {
+          "type": "hidden_symbol",
+          "symbol": "packet_rcv",
+          "addr": "0000000000000000",
+          "detail": "Address zeroed \u2014 likely hidden by rootkit"
+        },
+        {
+          "type": "hidden_symbol",
+          "symbol": "__pfx_tpacket_rcv",
+          "addr": "0000000000000000",
+          "detail": "Address zeroed \u2014 likely hidden by rootkit"
+        },
+        {
+          "type": "hidden_symbol",
+          "symbol": "tpacket_rcv",
+          "addr": "0000000000000000",
+          "detail": "Address zeroed \u2014 likely hidden by rootkit"
+        },
+        {
+          "type": "hidden_symbol",
+          "symbol": "sys_call_table",
+          "addr": "0000000000000000",
+          "detail": "Address zeroed \u2014 likely hidden by rootkit"
+        }
+      ],
+      "summary": "17 kernel-level hook(s)/rootkit module(s) detected."
+    },
+    "fs_checker": {
+      "module": "fs_checker",
+      "threat_count": 28,
+      "findings": [
+        {
+          "type": "suspicious_suid",
+          "path": "/usr/bin/fusermount3",
+          "detail": "SUID binary not in known-good whitelist"
+        },
+        {
+          "type": "suspicious_suid",
+          "path": "/usr/bin/vmware-user-suid-wrapper",
+          "detail": "SUID binary not in known-good whitelist"
+        },
+        {
+          "type": "suspicious_suid",
+          "path": "/usr/lib/xorg/Xorg.wrap",
+          "detail": "SUID binary not in known-good whitelist"
+        },
+        {
+          "type": "suspicious_suid",
+          "path": "/usr/lib/polkit-1/polkit-agent-helper-1",
+          "detail": "SUID binary not in known-good whitelist"
+        },
+        {
+          "type": "suspicious_suid",
+          "path": "/snap/core22/2292/usr/bin/chfn",
+          "detail": "SUID binary not in known-good whitelist"
+        },
+        {
+          "type": "suspicious_suid",
+          "path": "/snap/core22/2292/usr/bin/chsh",
+          "detail": "SUID binary not in known-good whitelist"
+        },
+        {
+          "type": "suspicious_suid",
+          "path": "/snap/core22/2292/usr/bin/gpasswd",
+          "detail": "SUID binary not in known-good whitelist"
+        },
+        {
+          "type": "suspicious_suid",
+          "path": "/snap/core22/2292/usr/bin/mount",
+          "detail": "SUID binary not in known-good whitelist"
+        },
+        {
+          "type": "suspicious_suid",
+          "path": "/snap/core22/2292/usr/bin/newgrp",
+          "detail": "SUID binary not in known-good whitelist"
+        },
+        {
+          "type": "suspicious_suid",
+          "path": "/snap/core22/2292/usr/bin/passwd",
+          "detail": "SUID binary not in known-good whitelist"
+        },
+        {
+          "type": "suspicious_suid",
+          "path": "/snap/core22/2292/usr/bin/su",
+          "detail": "SUID binary not in known-good whitelist"
+        },
+        {
+          "type": "suspicious_suid",
+          "path": "/snap/core22/2292/usr/bin/sudo",
+          "detail": "SUID binary not in known-good whitelist"
+        },
+        {
+          "type": "suspicious_suid",
+          "path": "/snap/core22/2292/usr/bin/umount",
+          "detail": "SUID binary not in known-good whitelist"
+        },
+        {
+          "type": "suspicious_suid",
+          "path": "/snap/core22/2292/usr/lib/dbus-1.0/dbus-daemon-launch-helper",
+          "detail": "SUID binary not in known-good whitelist"
+        },
+        {
+          "type": "suspicious_suid",
+          "path": "/snap/core22/2292/usr/lib/openssh/ssh-keysign",
+          "detail": "SUID binary not in known-good whitelist"
+        },
+        {
+          "type": "suspicious_suid",
+          "path": "/snap/core22/2292/usr/libexec/polkit-agent-helper-1",
+          "detail": "SUID binary not in known-good whitelist"
+        },
+        {
+          "type": "suspicious_suid",
+          "path": "/snap/core24/1499/usr/bin/chfn",
+          "detail": "SUID binary not in known-good whitelist"
+        },
+        {
+          "type": "suspicious_suid",
+          "path": "/snap/core24/1499/usr/bin/chsh",
+          "detail": "SUID binary not in known-good whitelist"
+        },
+        {
+          "type": "suspicious_suid",
+          "path": "/snap/core24/1499/usr/bin/gpasswd",
+          "detail": "SUID binary not in known-good whitelist"
+        },
+        {
+          "type": "suspicious_suid",
+          "path": "/snap/core24/1499/usr/bin/mount",
+          "detail": "SUID binary not in known-good whitelist"
+        },
+        {
+          "type": "suspicious_suid",
+          "path": "/snap/core24/1499/usr/bin/newgrp",
+          "detail": "SUID binary not in known-good whitelist"
+        },
+        {
+          "type": "suspicious_suid",
+          "path": "/snap/core24/1499/usr/bin/passwd",
+          "detail": "SUID binary not in known-good whitelist"
+        },
+        {
+          "type": "suspicious_suid",
+          "path": "/snap/core24/1499/usr/bin/su",
+          "detail": "SUID binary not in known-good whitelist"
+        },
+        {
+          "type": "suspicious_suid",
+          "path": "/snap/core24/1499/usr/bin/sudo",
+          "detail": "SUID binary not in known-good whitelist"
+        },
+        {
+          "type": "suspicious_suid",
+          "path": "/snap/core24/1499/usr/bin/umount",
+          "detail": "SUID binary not in known-good whitelist"
+        },
+        {
+          "type": "suspicious_suid",
+          "path": "/snap/core24/1499/usr/lib/dbus-1.0/dbus-daemon-launch-helper",
+          "detail": "SUID binary not in known-good whitelist"
+        },
+        {
+          "type": "suspicious_suid",
+          "path": "/snap/core24/1499/usr/lib/openssh/ssh-keysign",
+          "detail": "SUID binary not in known-good whitelist"
+        },
+        {
+          "type": "suspicious_suid",
+          "path": "/snap/core24/1499/usr/lib/polkit-1/polkit-agent-helper-1",
+          "detail": "SUID binary not in known-good whitelist"
+        }
+      ],
+      "summary": "28 filesystem threat(s) detected (0 hidden port(s), 28 suspicious SUID binary/binaries)."
+    }
+  },
+  "id": "7688365a"
+}

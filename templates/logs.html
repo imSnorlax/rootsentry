@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>RootSentry — Logs</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono&display=swap" rel="stylesheet"/>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --bg:#0a0f1e;--surface:#111827;--card:#1a2236;--border:#1e2d45;
+      --text:#e2e8f0;--muted:#64748b;--accent:#6366f1;
+      --clean:#22c55e;--warn:#f59e0b;--danger:#ef4444;
+    }
+    body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+    nav{
+      background:rgba(17,24,39,.85);backdrop-filter:blur(12px);
+      border-bottom:1px solid var(--border);padding:0 32px;
+      display:flex;align-items:center;justify-content:space-between;height:64px;
+      position:sticky;top:0;z-index:100;
+    }
+    .brand{font-size:1.4rem;font-weight:800;letter-spacing:-.5px}
+    .brand span{color:var(--accent)}
+    nav a{color:var(--muted);text-decoration:none;font-size:.9rem;font-weight:500;
+          padding:6px 14px;border-radius:8px;transition:all .2s}
+    nav a:hover{color:var(--text);background:var(--border)}
+    nav a.active{color:var(--accent);background:#6366f120}
+    .nav-links{display:flex;gap:4px}
+    main{max-width:1000px;margin:0 auto;padding:40px 24px}
+    h1{font-size:1.6rem;font-weight:800;margin-bottom:8px}
+    .subtitle{color:var(--muted);margin-bottom:24px}
+    .toolbar{display:flex;gap:12px;align-items:center;margin-bottom:16px;flex-wrap:wrap}
+    input[type=text]{
+      flex:1;min-width:200px;padding:10px 16px;background:var(--surface);
+      border:1px solid var(--border);border-radius:10px;color:var(--text);
+      font-family:'JetBrains Mono',monospace;font-size:.85rem;outline:none;
+      transition:border-color .2s;
+    }
+    input[type=text]:focus{border-color:var(--accent)}
+    input::placeholder{color:var(--muted)}
+    .btn{
+      padding:10px 18px;border-radius:10px;font-size:.85rem;font-weight:700;
+      cursor:pointer;border:none;text-decoration:none;display:inline-flex;
+      align-items:center;gap:6px;transition:all .2s;font-family:'Inter',sans-serif;
+    }
+    .btn-primary{background:var(--accent);color:#fff}
+    .btn-primary:hover{background:#4f46e5}
+    .log-terminal{
+      background:#060d1a;border:1px solid var(--border);border-radius:14px;
+      padding:24px;font-family:'JetBrains Mono',monospace;font-size:.82rem;
+      line-height:1.7;max-height:620px;overflow-y:auto;
+    }
+    .log-line{display:flex;gap:12px;padding:2px 0}
+    .log-line:hover{background:#ffffff05;border-radius:4px}
+    .log-ts{color:#334155;min-width:200px;flex-shrink:0}
+    .log-level{min-width:50px;font-weight:700}
+    .level-INFO{color:#6366f1}
+    .level-WARNING,.level-WARN{color:var(--warn)}
+    .level-ERROR{color:var(--danger)}
+    .level-DEBUG{color:var(--muted)}
+    .log-msg{color:#94a3b8;word-break:break-all}
+    .log-msg .highlight{background:#f59e0b30;color:var(--warn);border-radius:2px;padding:0 2px}
+    .empty{text-align:center;padding:60px;color:var(--muted)}
+    .count-badge{background:var(--card);border:1px solid var(--border);
+                 border-radius:8px;padding:4px 12px;font-size:.8rem;color:var(--muted)}
+    .count-badge span{color:var(--text);font-weight:700}
+  </style>
+</head>
+<body>
+<nav>
+  <div class="brand">Root<span>Sentry</span></div>
+  <div class="nav-links">
+    <a href="/">Dashboard</a>
+    <a href="/scan">New Scan</a>
+    <a href="/logs" class="active">Logs</a>
+  </div>
+</nav>
+
+<main>
+  <h1>📋 System Logs</h1>
+  <p class="subtitle">Live output from the RootSentry scan engine.</p>
+
+  <div class="toolbar">
+    <input type="text" id="filter" placeholder="Filter logs…" oninput="filterLogs()"/>
+    <span class="count-badge">Showing <span id="count">{{ lines|length }}</span> lines</span>
+    <a href="/logs" class="btn btn-primary">🔄 Refresh</a>
+  </div>
+
+  <div class="log-terminal" id="terminal">
+    {% if lines %}
+      {% for line in lines %}
+      {% set parts = line.strip().split(' ') %}
+      <div class="log-line" data-raw="{{ line.strip()|lower }}">
+        <span class="log-ts">{{ parts[0] ~ ' ' ~ parts[1] if parts|length >= 2 else '' }}</span>
+        <span class="log-level level-{% if '[ERROR]' in line %}ERROR{% elif '[WARNING]' in line or '[WARN]' in line %}WARNING{% elif '[DEBUG]' in line %}DEBUG{% else %}INFO{% endif %}">
+          {% if '[ERROR]' in line %}ERR{% elif '[WARNING]' in line or '[WARN]' in line %}WARN{% elif '[DEBUG]' in line %}DBG{% else %}INFO{% endif %}
+        </span>
+        <span class="log-msg">{{ line.strip() | replace(parts[0],'') | replace(parts[1] if parts|length >= 2 else '','')|trim if parts|length >= 2 else line.strip() }}</span>
+      </div>
+      {% endfor %}
+    {% else %}
+    <div class="empty">No log entries yet. Run a scan to generate logs.</div>
+    {% endif %}
+  </div>
+</main>
+
+<script>
+// Auto-scroll to bottom
+const term = document.getElementById('terminal');
+term.scrollTop = term.scrollHeight;
+
+function filterLogs() {
+  const q = document.getElementById('filter').value.toLowerCase();
+  const lines = term.querySelectorAll('.log-line');
+  let visible = 0;
+  lines.forEach(l => {
+    const raw = l.dataset.raw || '';
+    const show = !q || raw.includes(q);
+    l.style.display = show ? '' : 'none';
+    if(show) visible++;
+  });
+  document.getElementById('count').textContent = visible;
+}
+
+// Auto-refresh every 10s
+setInterval(() => window.location.reload(), 10000);
+</script>
+</body>
+</html>

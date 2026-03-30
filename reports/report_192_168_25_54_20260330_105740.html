@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RootSentry Report — 192.168.25.54</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      padding: 40px 20px;
+      min-height: 100vh;
+    }
+    .container { max-width: 900px; margin: 0 auto; }
+    .header {
+      background: linear-gradient(135deg, #1e293b, #0f172a);
+      border: 1px solid #334155;
+      border-radius: 16px;
+      padding: 36px;
+      margin-bottom: 32px;
+      text-align: center;
+    }
+    .logo { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; letter-spacing: -1px; }
+    .logo span { color: #ef4444; }
+    .meta { color: #64748b; font-size: 0.9rem; margin-top: 8px; }
+    .risk-badge {
+      display: inline-block;
+      margin-top: 20px;
+      padding: 10px 32px;
+      background: #ef444422;
+      border: 2px solid #ef4444;
+      border-radius: 100px;
+      color: #ef4444;
+      font-size: 1.4rem;
+      font-weight: 800;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-bottom: 32px;
+    }
+    .stat-card {
+      background: #1e293b;
+      border-radius: 12px;
+      padding: 20px;
+      text-align: center;
+      border: 1px solid #334155;
+    }
+    .stat-card .value {
+      font-size: 2rem;
+      font-weight: 800;
+      color: #f1f5f9;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .stat-card .label { color: #64748b; font-size: 0.82rem; margin-top: 4px; }
+    h2 { color: #f1f5f9; margin-bottom: 20px; font-size: 1.2rem; }
+    table { table-layout: fixed; }
+    table td, table th { padding: 8px 12px; word-break: break-all; }
+    tr:nth-child(even) { background: #0f172a44; }
+    .footer { text-align: center; color: #475569; font-size: 0.82rem; margin-top: 40px; }
+  </style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <div class="logo">Root<span>Sentry</span></div>
+    <div class="meta">Target: <b>192.168.25.54</b> &nbsp;|&nbsp; Scanned: 2026-03-30T10:54:57Z &nbsp;|&nbsp; Report: 2026-03-30 10:57:40 UTC</div>
+    <div class="risk-badge">infected</div>
+  </div>
+
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="value" style="color:#ef4444">48</div>
+      <div class="label">Total Threats</div>
+    </div>
+    <div class="stat-card">
+      <div class="value">3</div>
+      <div class="label">Modules Run</div>
+    </div>
+    <div class="stat-card">
+      <div class="value" style="font-size:1.1rem;padding-top:6px">192.168.25.54</div>
+      <div class="label">Target Host</div>
+    </div>
+  </div>
+
+  <h2>Detection Results</h2>
+  
+    <div style="background:#1e293b;border-radius:12px;padding:24px;margin-bottom:20px;
+                border-left:4px solid #ef4444">
+      <h3 style="margin:0 0 8px;color:#f1f5f9">
+        <span style="color:#ef4444">✘</span>
+        &nbsp;process_scanner
+        &nbsp;<span style="background:#ef4444;padding:2px 10px;border-radius:12px;color:#fff;font-weight:700">3</span>
+      </h3>
+      <p style="color:#94a3b8;margin:0 0 16px">3 hidden process(es) detected.</p>
+      
+    <table style="width:100%;border-collapse:collapse;font-size:0.9rem">
+      <thead>
+        <tr style="background:#1e293b;color:#94a3b8;text-align:left">
+          <th style="padding:8px 12px">Type</th>
+          <th style="padding:8px 12px">Target</th>
+          <th style="padding:8px 12px">Detail</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span style="background:#f59e0b22;color:#f59e0b;padding:2px 8px;
+              border-radius:6px;font-size:0.8rem">—</span></td>
+          <td style="font-family:monospace">4089</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td><span style="background:#f59e0b22;color:#f59e0b;padding:2px 8px;
+              border-radius:6px;font-size:0.8rem">—</span></td>
+          <td style="font-family:monospace">4093</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td><span style="background:#f59e0b22;color:#f59e0b;padding:2px 8px;
+              border-radius:6px;font-size:0.8rem">—</span></td>
+          <td style="font-family:monospace">4094</td>
+          <td>—</td>
+        </tr></tbody>
+    </table>
+    </div>
+    <div style="background:#1e293b;border-radius:12px;padding:24px;margin-bottom:20px;
+                border-left:4px solid #ef4444">
+      <h3 style="margin:0 0 8px;color:#f1f5f9">
+        <span style="color:#ef4444">✘</span>
+        &nbsp;syscall_inspector
+        &nbsp;<span style="background:#ef4444;padding:2px 10px;border-radius:12px;color:#fff;font-weight:700">17</span>
+      </h3>
+      <p style="color:#94a3b8;margin:0 0 16px">17 kernel-level hook(s)/rootkit module(s) detected.</p>
+      
+    <table style="width:100%;border-collapse:collapse;font-size:0.9rem">
+      <thead>
+        <tr style="background:#1e293b;color:#94a3b8;text-align:left">
+          <th style="padding:8px 12px">Type</th>
+          <th style="padding:8px 12px">Target</th>
+          <th style="padding:8px 12px">Detail</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span style="background:#ef444422;color:#ef4444;padding:2px 8px;
+              border-radius:6px;font-size:0.8rem">hidden_symbol</span></td>
+          <td style="font-family:monospace">audit_log_exit.cold</td>
+          <td>Address zeroed — likely hidden by rootkit</td>
+        </tr>
+        <tr>
+          <td><span style="background:#ef444422;color:#ef4444;padding:2px 8px;
+              border-radius:6px;font-size:0.8rem">hidden_symbol</span></td>
+          <td style="font-family:monospace">tpacket_rcv.cold</td>
+          <td>Address zeroed — likely hidden by rootkit</td>
+        </tr>
+        <tr>
+          <td><span style="background:#ef444422;color:#ef4444;padding:2px 8px;
+              border-radius:6px;font-size:0.8rem">hidden_symbol</span></td>
+          <td style="font-family:monospace">__pfx_audit_log_exit</td>
+          <td>Address zeroed — likely hidden by rootkit</td>
+        </tr>
+        <tr>
+          <td><span style="background:#ef444422;color:#ef4444;padding:2px 8px;
+              border-radius:6px;font-size:0.8rem">hidden_symbol</span></td>
+          <td style="font-family:monospace">audit_log_exit</td>
+          <td>Address zeroed — likely hidden by rootkit</td>
+        </tr>
+        <tr>
+          <td><span style="background:#ef444422;color:#ef4444;padding:2px 8px;
+              border-radius:6px;font-size:0.8rem">hidden_symbol</span></td>
+          <td style="font-family:monospace">__pfx_tcp4_seq_show</td>
+          <td>Address zeroed — likely hidden by rootkit</td>
+        </tr>
+        <tr>
+          <td><span style="background:#ef444422;color:#ef4444;padding:2px 8px;
+              border-radius:6px;font-size:0.8rem">hidden_symbol</span></td>
+          <td style="font-family:monospace">tcp4_seq_show</td>
+          <td>Address zeroed — likely hidden by rootkit</td>
+        </tr>
+        <tr>
+          <td><span style="background:#ef444422;color:#ef4444;padding:2px 8px;
+              border-radius:6px;font-size:0.8rem">hidden_symbol</span></td>
+          <td style="font-family:monospace">__pfx___packet_rcv_has_room</td>
+          <td>Address zeroed — likely hidden by rootkit</td>
+        </tr>
+        <tr>
+          <td><span style="background:#ef444422;color:#ef4444;padding:2px 8px;
+              border-radius:6px;font-size:0.8rem">hidden_symbol</span></td>
+          <td style="font-family:monospace">__packet_rcv_has_room</td>
+          <td>Address zeroed — likely hidden by rootkit</td>
+        </tr>
+        <tr>
+          <td><span style="background:#ef444422;color:#ef4444;padding:2px 8px;
+              border-radius:6px;font-size:0.8rem">hidden_symbol</span></td>
+          <td style="font-family:monospace">__pfx_packet_rcv_spkt</td>
+          <td>Address zeroed — likely hidden by rootkit</td>
+        </tr>
+        <tr>
+          <td><span style="background:#ef444422;color:#ef4444;padding:2px 8px;
+              border-radius:6px;font-size:0.8rem">hidden_symbol</span></td>
+          <td style="font-family:monospace">packet_rcv_spkt</td>
+          <td>Address zeroed — likely hidden by rootkit</td>
+        </tr>
+        <tr>
+          <td><span style="background:#ef444422;color:#ef4444;padding:2px 8px;
+              border-radius:6px;font-size:0.8rem">hidden_symbol</span></td>
+          <td style="font-family:monospace">__pfx_packet_rcv_fanout</td>
+          <td>Address zeroed — likely hidden by rootkit</td>
+        </tr>
+        <tr>
+          <td><span style="background:#ef444422;color:#ef4444;padding:2px 8px;
+              border-radius:6px;font-size:0.8rem">hidden_symbol</span></td>
+          <td style="font-family:monospace">packet_rcv_fanout</td>
+          <td>Address zeroed — likely hidden by rootkit</td>
+        </tr>
+        <tr>
+          <td><span style="background:#ef444422;color:#ef4444;padding:2px 8px;
+              border-radius:6px;font-size:0.8rem">hidden_symbol</span></td>
+          <td style="font-family:monospace">__pfx_packet_rcv</td>
+          <td>Address zeroed — likely hidden by rootkit</td>
+        </tr>
+        <tr>
+          <td><span style="background:#ef444422;color:#ef4444;padding:2px 8px;
+              border-radius:6px;font-size:0.8rem">hidden_symbol</span></td>
+          <td style="font-family:monospace">packet_rcv</td>
+          <td>Address zeroed — likely hidden by rootkit</td>
+        </tr>
+        <tr>
+          <td><span style="background:#ef444422;color:#ef4444;padding:2px 8px;
+              border-radius:6px;font-size:0.8rem">hidden_symbol</span></td>
+          <td style="font-family:monospace">__pfx_tpacket_rcv</td>
+          <td>Address zeroed — likely hidden by rootkit</td>
+        </tr>
+        <tr>
+          <td><span style="background:#ef444422;color:#ef4444;padding:2px 8px;
+              border-radius:6px;font-size:0.8rem">hidden_symbol</span></td>
+          <td style="font-family:monospace">tpacket_rcv</td>
+          <td>Address zeroed — likely hidden by rootkit</td>
+        </tr>
+        <tr>
+          <td><span style="background:#ef444422;color:#ef4444;padding:2px 8px;
+              border-radius:6px;font-size:0.8rem">hidden_symbol</span></td>
+          <td style="font-family:monospace">sys_call_table</td>
+          <td>Address zeroed — likely hidden by rootkit</td>
+        </tr></tbody>
+    </table>
+    </div>
+    <div style="background:#1e293b;border-radius:12px;padding:24px;margin-bottom:20px;
+                border-left:4px solid #ef4444">
+      <h3 style="margin:0 0 8px;color:#f1f5f9">
+        <span style="color:#ef4444">✘</span>
+        &nbsp;fs_checker
+        &nbsp;<span style="background:#ef4444;padding:2px 10px;border-radius:12px;color:#fff;font-weight:700">28</span>
+      </h3>
+      <p style="color:#94a3b8;margin:0 0 16px">28 filesystem threat(s) detected (0 hidden port(s), 28 suspicious SUID binary/binaries).</p>
+      
+    <table style="width:100%;border-collapse:collapse;font-size:0.9rem">
+      <thead>
+        <tr style="background:#1e293b;color:#94a3b8;text-align:left">
+          <th style="padding:8px 12px">Type</th>
+          <th style="padding:8px 12px">Target</th>
+          <th style="padding:8px 12px">Detail</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span style="background:#f59e0b22;color:#f59e0b;padding:2px 8px;
+              border-radius:6px;font-size:0.8rem">suspicious_suid</span></td>
+          <td style="font-family:monospace">/usr/bin/fusermount3</td>
+          <td>SUID binary not in known-good whitelist</td>
+        </tr>
+        <tr>
+          <td><span style="background:#f59e0b22;color:#f59e0b;padding:2px 8px;
+              border-radius:6px;font-size:0.8rem">suspicious_suid</span></td>
+          <td style="font-family:monospace">/usr/bin/vmware-user-suid-wrapper</td>
+          <td>SUID binary not in known-good whitelist</td>
+        </tr>
+        <tr>
+          <td><span style="background:#f59e0b22;color:#f59e0b;padding:2px 8px;
+              border-radius:6px;font-size:0.8rem">suspicious_suid</span></td>
+          <td style="font-family:monospace">/usr/lib/xorg/Xorg.wrap</td>
+          <td>SUID binary not in known-good whitelist</td>
+        </tr>
+        <tr>
+          <td><span style="background:#f59e0b22;color:#f59e0b;padding:2px 8px;
+              border-radius:6px;font-size:0.8rem">suspicious_suid</span></td>
+          <td style="font-family:monospace">/usr/lib/polkit-1/polkit-agent-helper-1</td>
+          <td>SUID binary not in known-good whitelist</td>
+        </tr>
+        <tr>
+          <td><span style="background:#f59e0b22;color:#f59e0b;padding:2px 8px;
+              border-radius:6px;font-size:0.8rem">suspicious_suid</span></td>
+          <td style="font-family:monospace">/snap/core22/2292/usr/bin/chfn</td>
+          <td>SUID binary not in known-good whitelist</td>
+        </tr>
+        <tr>
+          <td><span style="background:#f59e0b22;color:#f59e0b;padding:2px 8px;
+              border-radius:6px;font-size:0.8rem">suspicious_suid</span></td>
+          <td style="font-family:monospace">/snap/core22/2292/usr/bin/chsh</td>
+          <td>SUID binary not in known-good whitelist</td>
+        </tr>
+        <tr>
+          <td><span style="background:#f59e0b22;color:#f59e0b;padding:2px 8px;
+              border-radius:6px;font-size:0.8rem">suspicious_suid</span></td>
+          <td style="font-family:monospace">/snap/core22/2292/usr/bin/gpasswd</td>
+          <td>SUID binary not in known-good whitelist</td>
+        </tr>
+        <tr>
+          <td><span style="background:#f59e0b22;color:#f59e0b;padding:2px 8px;
+              border-radius:6px;font-size:0.8rem">suspicious_suid</span></td>
+          <td style="font-family:monospace">/snap/core22/2292/usr/bin/mount</td>
+          <td>SUID binary not in known-good whitelist</td>
+        </tr>
+        <tr>
+          <td><span style="background:#f59e0b22;color:#f59e0b;padding:2px 8px;
+              border-radius:6px;font-size:0.8rem">suspicious_suid</span></td>
+          <td style="font-family:monospace">/snap/core22/2292/usr/bin/newgrp</td>
+          <td>SUID binary not in known-good whitelist</td>
+        </tr>
+        <tr>
+          <td><span style="background:#f59e0b22;color:#f59e0b;padding:2px 8px;
+              border-radius:6px;font-size:0.8rem">suspicious_suid</span></td>
+          <td style="font-family:monospace">/snap/core22/2292/usr/bin/passwd</td>
+          <td>SUID binary not in known-good whitelist</td>
+        </tr>
+        <tr>
+          <td><span style="background:#f59e0b22;color:#f59e0b;padding:2px 8px;
+              border-radius:6px;font-size:0.8rem">suspicious_suid</span></td>
+          <td style="font-family:monospace">/snap/core22/2292/usr/bin/su</td>
+          <td>SUID binary not in known-good whitelist</td>
+        </tr>
+        <tr>
+          <td><span style="background:#f59e0b22;color:#f59e0b;padding:2px 8px;
+              border-radius:6px;font-size:0.8rem">suspicious_suid</span></td>
+          <td style="font-family:monospace">/snap/core22/2292/usr/bin/sudo</td>
+          <td>SUID binary not in known-good whitelist</td>
+        </tr>
+        <tr>
+          <td><span style="background:#f59e0b22;color:#f59e0b;padding:2px 8px;
+              border-radius:6px;font-size:0.8rem">suspicious_suid</span></td>
+          <td style="font-family:monospace">/snap/core22/2292/usr/bin/umount</td>
+          <td>SUID binary not in known-good whitelist</td>
+        </tr>
+        <tr>
+          <td><span style="background:#f59e0b22;color:#f59e0b;padding:2px 8px;
+              border-radius:6px;font-size:0.8rem">suspicious_suid</span></td>
+          <td style="font-family:monospace">/snap/core22/2292/usr/lib/dbus-1.0/dbus-daemon-launch-helper</td>
+          <td>SUID binary not in known-good whitelist</td>
+        </tr>
+        <tr>
+          <td><span style="background:#f59e0b22;color:#f59e0b;padding:2px 8px;
+              border-radius:6px;font-size:0.8rem">suspicious_suid</span></td>
+          <td style="font-family:monospace">/snap/core22/2292/usr/lib/openssh/ssh-keysign</td>
+          <td>SUID binary not in known-good whitelist</td>
+        </tr>
+        <tr>
+          <td><span style="background:#f59e0b22;color:#f59e0b;padding:2px 8px;
+              border-radius:6px;font-size:0.8rem">suspicious_suid</span></td>
+          <td style="font-family:monospace">/snap/core22/2292/usr/libexec/polkit-agent-helper-1</td>
+          <td>SUID binary not in known-good whitelist</td>
+        </tr>
+        <tr>
+          <td><span style="background:#f59e0b22;color:#f59e0b;padding:2px 8px;
+              border-radius:6px;font-size:0.8rem">suspicious_suid</span></td>
+          <td style="font-family:monospace">/snap/core24/1499/usr/bin/chfn</td>
+          <td>SUID binary not in known-good whitelist</td>
+        </tr>
+        <tr>
+          <td><span style="background:#f59e0b22;color:#f59e0b;padding:2px 8px;
+              border-radius:6px;font-size:0.8rem">suspicious_suid</span></td>
+          <td style="font-family:monospace">/snap/core24/1499/usr/bin/chsh</td>
+          <td>SUID binary not in known-good whitelist</td>
+        </tr>
+        <tr>
+          <td><span style="background:#f59e0b22;color:#f59e0b;padding:2px 8px;
+              border-radius:6px;font-size:0.8rem">suspicious_suid</span></td>
+          <td style="font-family:monospace">/snap/core24/1499/usr/bin/gpasswd</td>
+          <td>SUID binary not in known-good whitelist</td>
+        </tr>
+        <tr>
+          <td><span style="background:#f59e0b22;color:#f59e0b;padding:2px 8px;
+              border-radius:6px;font-size:0.8rem">suspicious_suid</span></td>
+          <td style="font-family:monospace">/snap/core24/1499/usr/bin/mount</td>
+          <td>SUID binary not in known-good whitelist</td>
+        </tr>
+        <tr>
+          <td><span style="background:#f59e0b22;color:#f59e0b;padding:2px 8px;
+              border-radius:6px;font-size:0.8rem">suspicious_suid</span></td>
+          <td style="font-family:monospace">/snap/core24/1499/usr/bin/newgrp</td>
+          <td>SUID binary not in known-good whitelist</td>
+        </tr>
+        <tr>
+          <td><span style="background:#f59e0b22;color:#f59e0b;padding:2px 8px;
+              border-radius:6px;font-size:0.8rem">suspicious_suid</span></td>
+          <td style="font-family:monospace">/snap/core24/1499/usr/bin/passwd</td>
+          <td>SUID binary not in known-good whitelist</td>
+        </tr>
+        <tr>
+          <td><span style="background:#f59e0b22;color:#f59e0b;padding:2px 8px;
+              border-radius:6px;font-size:0.8rem">suspicious_suid</span></td>
+          <td style="font-family:monospace">/snap/core24/1499/usr/bin/su</td>
+          <td>SUID binary not in known-good whitelist</td>
+        </tr>
+        <tr>
+          <td><span style="background:#f59e0b22;color:#f59e0b;padding:2px 8px;
+              border-radius:6px;font-size:0.8rem">suspicious_suid</span></td>
+          <td style="font-family:monospace">/snap/core24/1499/usr/bin/sudo</td>
+          <td>SUID binary not in known-good whitelist</td>
+        </tr>
+        <tr>
+          <td><span style="background:#f59e0b22;color:#f59e0b;padding:2px 8px;
+              border-radius:6px;font-size:0.8rem">suspicious_suid</span></td>
+          <td style="font-family:monospace">/snap/core24/1499/usr/bin/umount</td>
+          <td>SUID binary not in known-good whitelist</td>
+        </tr>
+        <tr>
+          <td><span style="background:#f59e0b22;color:#f59e0b;padding:2px 8px;
+              border-radius:6px;font-size:0.8rem">suspicious_suid</span></td>
+          <td style="font-family:monospace">/snap/core24/1499/usr/lib/dbus-1.0/dbus-daemon-launch-helper</td>
+          <td>SUID binary not in known-good whitelist</td>
+        </tr>
+        <tr>
+          <td><span style="background:#f59e0b22;color:#f59e0b;padding:2px 8px;
+              border-radius:6px;font-size:0.8rem">suspicious_suid</span></td>
+          <td style="font-family:monospace">/snap/core24/1499/usr/lib/openssh/ssh-keysign</td>
+          <td>SUID binary not in known-good whitelist</td>
+        </tr>
+        <tr>
+          <td><span style="background:#f59e0b22;color:#f59e0b;padding:2px 8px;
+              border-radius:6px;font-size:0.8rem">suspicious_suid</span></td>
+          <td style="font-family:monospace">/snap/core24/1499/usr/lib/polkit-1/polkit-agent-helper-1</td>
+          <td>SUID binary not in known-good whitelist</td>
+        </tr></tbody>
+    </table>
+    </div>
+
+  
+
+  <div class="footer">
+    Generated by RootSentry &mdash; Linux Rootkit Detection &amp; Remediation Tool
+  </div>
+</div>
+</body>
+</html>

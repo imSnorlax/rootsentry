@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>RootSentry — Scan {{ scan_id }}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono&display=swap" rel="stylesheet"/>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --bg:#0a0f1e;--surface:#111827;--card:#1a2236;--border:#1e2d45;
+      --text:#e2e8f0;--muted:#64748b;--accent:#6366f1;
+      --clean:#22c55e;--warn:#f59e0b;--danger:#ef4444;
+    }
+    body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+    nav{
+      background:rgba(17,24,39,.85);backdrop-filter:blur(12px);
+      border-bottom:1px solid var(--border);padding:0 32px;
+      display:flex;align-items:center;justify-content:space-between;height:64px;
+      position:sticky;top:0;z-index:100;
+    }
+    .brand{font-size:1.4rem;font-weight:800;letter-spacing:-.5px}
+    .brand span{color:var(--accent)}
+    nav a{color:var(--muted);text-decoration:none;font-size:.9rem;font-weight:500;
+          padding:6px 14px;border-radius:8px;transition:all .2s}
+    nav a:hover{color:var(--text);background:var(--border)}
+    .nav-links{display:flex;gap:4px}
+    main{max-width:1000px;margin:0 auto;padding:40px 24px}
+    /* header card */
+    .scan-header{
+      border-radius:16px;padding:32px;margin-bottom:24px;
+      background:linear-gradient(135deg,#1a2236,#0a1628);
+      border:1px solid var(--border);
+      display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:20px;
+    }
+    .risk-block h1{font-size:1.6rem;font-weight:800}
+    .risk-block p{color:var(--muted);font-size:.85rem;margin-top:4px;
+                  font-family:'JetBrains Mono',monospace}
+    .risk-badge{
+      padding:12px 36px;border-radius:100px;font-size:1.5rem;font-weight:800;
+      letter-spacing:2px;text-transform:uppercase;border:2px solid;
+    }
+    .risk-badge.infected{color:var(--danger);border-color:var(--danger);background:#ef444415}
+    .risk-badge.suspicious{color:var(--warn);border-color:var(--warn);background:#f59e0b15}
+    .risk-badge.clean{color:var(--clean);border-color:var(--clean);background:#22c55e15}
+    .risk-badge.unknown,.risk-badge.error{color:var(--muted);border-color:var(--muted);background:#94a3b815}
+    /* meta pills */
+    .meta-row{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:28px}
+    .meta-pill{
+      background:var(--card);border:1px solid var(--border);border-radius:8px;
+      padding:8px 16px;font-size:.82rem;color:var(--muted);
+      display:flex;align-items:center;gap:8px;
+    }
+    .meta-pill strong{color:var(--text);font-family:'JetBrains Mono',monospace}
+    /* action bar */
+    .action-bar{display:flex;gap:12px;margin-bottom:28px;flex-wrap:wrap}
+    .btn{
+      padding:10px 20px;border-radius:10px;font-size:.875rem;font-weight:700;
+      cursor:pointer;border:none;text-decoration:none;display:inline-flex;
+      align-items:center;gap:8px;transition:all .2s;font-family:'Inter',sans-serif;
+    }
+    .btn-primary{background:var(--accent);color:#fff}
+    .btn-primary:hover{background:#4f46e5;transform:translateY(-1px)}
+    .btn-danger{background:#ef444420;color:var(--danger);border:1px solid #ef444440}
+    .btn-danger:hover{background:#ef444430}
+    .btn-success{background:#22c55e20;color:var(--clean);border:1px solid #22c55e40}
+    .btn-success:hover{background:#22c55e30}
+    .btn-secondary{background:var(--card);color:var(--text);border:1px solid var(--border)}
+    .btn-secondary:hover{background:var(--border)}
+    /* module cards */
+    .module-card{
+      background:var(--card);border:1px solid var(--border);border-radius:14px;
+      margin-bottom:18px;overflow:hidden;
+    }
+    .module-header{
+      padding:18px 24px;display:flex;align-items:center;justify-content:space-between;
+      border-bottom:1px solid var(--border);cursor:pointer;
+      transition:background .15s;
+    }
+    .module-header:hover{background:#ffffff04}
+    .module-title{font-weight:700;font-size:.95rem;display:flex;align-items:center;gap:10px}
+    .threat-badge{
+      padding:3px 12px;border-radius:100px;font-size:.75rem;font-weight:800;
+      font-family:'JetBrains Mono',monospace;
+    }
+    .threat-badge.zero{background:#22c55e20;color:var(--clean)}
+    .threat-badge.low{background:#f59e0b20;color:var(--warn)}
+    .threat-badge.high{background:#ef444420;color:var(--danger)}
+    .module-summary{color:var(--muted);font-size:.85rem}
+    .module-body{padding:20px 24px}
+    /* findings table */
+    table{width:100%;border-collapse:collapse;font-size:.875rem}
+    th{text-align:left;padding:8px 12px;color:var(--muted);font-size:.77rem;
+       font-weight:600;letter-spacing:.05em;text-transform:uppercase;
+       background:var(--surface);border-bottom:1px solid var(--border)}
+    td{padding:11px 12px;border-bottom:1px solid #ffffff08;word-break:break-all}
+    tr:last-child td{border-bottom:none}
+    tr:hover td{background:#ffffff04}
+    .ftype{
+      padding:2px 9px;border-radius:6px;font-size:.75rem;font-weight:700;
+    }
+    .ftype-hidden,.ftype-rootkit{background:#ef444420;color:var(--danger)}
+    .ftype-suspicious{background:#f59e0b20;color:var(--warn)}
+    .ftype-world{background:#6366f120;color:var(--accent)}
+    .ftype-error{background:#94a3b815;color:var(--muted)}
+    .mono{font-family:'JetBrains Mono',monospace;font-size:.83rem}
+    .no-findings{color:var(--muted);font-style:italic;padding:12px 0}
+    /* remediation section */
+    #remediation-result{display:none;margin-top:16px}
+    .rem-card{
+      background:#6366f110;border:1px solid #6366f130;border-radius:12px;
+      padding:20px;margin-top:16px;
+    }
+    .rem-card h3{font-size:.95rem;font-weight:700;margin-bottom:12px}
+    .rem-action{display:flex;gap:12px;align-items:center;padding:8px 0;
+                border-bottom:1px solid #ffffff08;font-size:.875rem}
+    .rem-action:last-child{border-bottom:none}
+    .ok{color:var(--clean);font-weight:700}
+    .fail{color:var(--danger);font-weight:700}
+    /* SSH modal */
+    .modal-overlay{
+      display:none;position:fixed;inset:0;background:#00000088;
+      backdrop-filter:blur(6px);z-index:999;
+      align-items:center;justify-content:center;
+    }
+    .modal-box{
+      background:#1a2236;border:1px solid #334155;border-radius:18px;
+      padding:36px;width:100%;max-width:420px;
+    }
+    .modal-box h3{font-size:1.1rem;font-weight:800;margin-bottom:6px}
+    .modal-box p{color:var(--muted);font-size:.85rem;margin-bottom:24px}
+    .modal-box label{display:block;font-size:.78rem;font-weight:700;
+      color:var(--muted);letter-spacing:.05em;text-transform:uppercase;margin-bottom:6px}
+    .modal-box input{
+      width:100%;padding:10px 14px;background:#111827;
+      border:1px solid var(--border);border-radius:8px;color:var(--text);
+      font-family:'JetBrains Mono',monospace;font-size:.9rem;outline:none;
+      margin-bottom:16px;transition:border-color .2s;
+    }
+    .modal-box input:focus{border-color:var(--accent)}
+    .modal-row{display:grid;grid-template-columns:2fr 1fr;gap:12px}
+    .modal-actions{display:flex;gap:10px;margin-top:4px}
+  </style>
+</head>
+<body>
+<nav>
+  <div class="brand">Root<span>Sentry</span></div>
+  <div class="nav-links">
+    <a href="/">Dashboard</a>
+    <a href="/scan">New Scan</a>
+    <a href="/logs">Logs</a>
+  </div>
+</nav>
+
+<main>
+  {% set risk = scan.get('risk_level','unknown') %}
+  {% set host = scan.get('host','localhost') %}
+  {% set total = scan.get('total_threats',0) %}
+
+  <!-- Header -->
+  <div class="scan-header">
+    <div class="risk-block">
+      <h1>Scan Report</h1>
+      <p>{{ host }} &nbsp;·&nbsp; {{ scan.get('timestamp','—') }}</p>
+    </div>
+    <div class="risk-badge {{ risk }}">{{ risk }}</div>
+  </div>
+
+  <!-- Meta -->
+  <div class="meta-row">
+    <div class="meta-pill">🎯 Target <strong>{{ host }}</strong></div>
+    <div class="meta-pill">⚠️ Threats <strong>{{ total }}</strong></div>
+    <div class="meta-pill">🆔 Scan ID <strong>{{ scan_id }}</strong></div>
+    <div class="meta-pill">🕐 Time <strong>{{ scan.get('timestamp','—') }}</strong></div>
+  </div>
+
+  <!-- Action bar -->
+  <div class="action-bar">
+    <a href="/report/{{ scan_id }}" class="btn btn-primary" target="_blank">📄 Download HTML Report</a>
+    {% if not scan.get('remediation') %}
+    <button class="btn btn-danger" id="btn-remediate" onclick="runRemediation()">🛠 Remediate All</button>
+    {% else %}
+    <span class="btn btn-success" style="pointer-events:none">✔ Already Remediated</span>
+    {% endif %}
+    <a href="/" class="btn btn-secondary">← Back to Dashboard</a>
+  </div>
+
+  <!-- Module Cards -->
+  {% for mod_name, mod in scan.get('modules',{}).items() %}
+  {% set tc = mod.get('threat_count',0) %}
+  <div class="module-card">
+    <div class="module-header" onclick="toggle('{{mod_name}}')">
+      <div class="module-title">
+        <span>{% if tc %}🔴{% else %}🟢{% endif %}</span>
+        {{ mod_name }}
+        <span class="threat-badge {% if tc == 0 %}zero{% elif tc <= 2 %}low{% else %}high{% endif %}">
+          {{ tc }} threat{% if tc != 1 %}s{% endif %}
+        </span>
+      </div>
+      <div class="module-summary">{{ mod.get('summary','') }}</div>
+    </div>
+    <div class="module-body" id="body-{{mod_name}}">
+      {% set findings = mod.get('findings',[]) %}
+      {% if findings %}
+      <table>
+        <thead>
+          <tr>
+            <th>Type</th><th>Target</th><th>Detail</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for f in findings %}
+          {% set ftype = f.get('type','') %}
+          <tr>
+            <td>
+              <span class="ftype {% if 'hidden' in ftype or 'rootkit' in ftype %}ftype-hidden{% elif 'suspicious' in ftype %}ftype-suspicious{% elif 'world' in ftype %}ftype-world{% elif 'error' in ftype %}ftype-error{% else %}ftype-suspicious{% endif %}">
+                {{ ftype }}
+              </span>
+            </td>
+            <td class="mono">
+              {{ f.get('pid') or f.get('path') or f.get('port') or f.get('module') or f.get('symbol') or '—' }}
+            </td>
+            <td style="color:var(--muted)">{{ f.get('detail','—') }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <p class="no-findings">✔ No findings in this module.</p>
+      {% endif %}
+    </div>
+  </div>
+  {% endfor %}
+
+  <!-- Remediation result (already done) -->
+  {% if scan.get('remediation') %}
+  <div class="rem-card">
+    <h3>🛠 Remediation — {{ scan.remediation.summary }}</h3>
+    {% for a in scan.remediation.get('actions',[]) %}
+    <div class="rem-action">
+      <span class="{% if a.success %}ok{% else %}fail{% endif %}">{% if a.success %}✔{% else %}✘{% endif %}</span>
+      <span style="font-weight:600">{{ a.action }}</span>
+      <span class="mono">{{ a.target }}</span>
+      <span style="color:var(--muted)">{{ a.get('detail','') }}</span>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <div id="remediation-result"></div>
+</main>
+
+<!-- SSH credentials modal -->
+<div class="modal-overlay" id="ssh-modal">
+  <div class="modal-box">
+    <h3>🔐 SSH Credentials Required</h3>
+    <p>Enter credentials to connect to <strong>{{ scan.get('host','target') }}</strong> and execute remediation commands.</p>
+    <label>Password</label>
+    <input type="password" id="modal-password" placeholder="SSH password"/>
+    <div class="modal-row">
+      <div>
+        <label>User</label>
+        <input type="text" id="modal-user" value="root" placeholder="root"/>
+      </div>
+      <div>
+        <label>Port</label>
+        <input type="number" id="modal-port" value="22"/>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-danger" id="modal-submit" style="flex:1">⚡ Run Remediation</button>
+      <button class="btn btn-secondary" id="modal-cancel">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script>
+function toggle(mod) {
+  const body = document.getElementById('body-' + mod);
+  body.style.display = body.style.display === 'none' ? '' : 'none';
+}
+
+const SCAN_HOST = "{{ scan.get('host','localhost') }}";
+const IS_REMOTE = SCAN_HOST !== 'localhost' && SCAN_HOST !== '127.0.0.1';
+
+function runRemediation() {
+  if (IS_REMOTE) {
+    document.getElementById('ssh-modal').style.display = 'flex';
+  } else {
+    if(!confirm('This will kill hidden processes and remove suspicious files locally. Continue?')) return;
+    doRemediate({});
+  }
+}
+
+document.getElementById('modal-cancel').addEventListener('click', () => {
+  document.getElementById('ssh-modal').style.display = 'none';
+});
+
+document.getElementById('modal-submit').addEventListener('click', () => {
+  const password = document.getElementById('modal-password').value.trim();
+  const user     = document.getElementById('modal-user').value.trim() || 'root';
+  const port     = parseInt(document.getElementById('modal-port').value) || 22;
+  if (!password) { alert('Password is required.'); return; }
+  document.getElementById('ssh-modal').style.display = 'none';
+  doRemediate({ password, user, port });
+});
+
+function doRemediate(creds) {
+  const btn = document.getElementById('btn-remediate');
+  if(btn) { btn.disabled = true; btn.textContent = '⏳ Remediating…'; }
+
+  fetch('/remediate/{{ scan_id }}', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify(creds)
+  })
+  .then(r => r.json())
+  .then(data => {
+    if(data.error) {
+      alert('Remediation error: ' + data.error);
+      if(btn) { btn.disabled=false; btn.textContent='🛠 Remediate All'; }
+      return;
+    }
+    if(btn) btn.textContent = '✔ Done';
+    const div = document.getElementById('remediation-result');
+    div.style.display = 'block';
+    let html = '<div class="rem-card"><h3>🛠 ' + data.summary + '</h3>';
+    (data.actions||[]).forEach(a => {
+      html += '<div class="rem-action">';
+      html += '<span class="' + (a.success?'ok':'fail') + '">' + (a.success?'✔':'✘') + '</span>';
+      html += '<span style="font-weight:600">' + a.action + '</span>';
+      html += '<span class="mono">' + a.target + '</span>';
+      html += '<span style="color:var(--muted)">' + (a.detail||'') + '</span>';
+      html += '</div>';
+    });
+    html += '</div>';
+    div.innerHTML = html;
+  })
+  .catch(e => {
+    if(btn) { btn.disabled=false; btn.textContent='🛠 Remediate All'; }
+    alert('Error: '+e);
+  });
+}
+</script>
+</body>
+</html>

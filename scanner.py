@@ -16,9 +16,11 @@ Remote scan:
 from __future__ import annotations
 
 import argparse
+import datetime
 import json
 import sys
 import os
+import uuid
 from typing import Optional
 
 # ── Make sure the project root is on sys.path ─────────────────────────────────
@@ -139,17 +141,33 @@ def run_scan(host: Optional[str] = None, password: Optional[str] = None,
     )
     risk = _compute_risk(total_threats)
 
-    return {
+    result = {
         "status":        "done",
         "host":          host or "localhost",
         "risk_level":    risk,
         "total_threats": total_threats,
+        "timestamp":     datetime.datetime.utcnow().isoformat(timespec="seconds") + "Z",
         "modules": {
             "process_scanner":   proc_result,
             "syscall_inspector": sys_result,
             "fs_checker":        fs_result,
         },
     }
+
+    # ── Persist to scans/ so the web dashboard can load it ──────────────────
+    from config import SCANS_DIR
+    os.makedirs(SCANS_DIR, exist_ok=True)
+    scan_id = str(uuid.uuid4())[:8]
+    result["id"] = scan_id
+    scan_file = os.path.join(SCANS_DIR, f"{scan_id}.json")
+    try:
+        with open(scan_file, "w", encoding="utf-8") as fh:
+            json.dump(result, fh, indent=2)
+        print(f"[*] Scan saved to {scan_file}")
+    except OSError as exc:
+        print(f"[!] Could not save scan: {exc}", file=sys.stderr)
+
+    return result
 
 
 # ── CLI ───────────────────────────────────────────────────────────────────────

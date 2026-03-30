@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>RootSentry — New Scan</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono&display=swap" rel="stylesheet"/>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --bg:#0a0f1e;--surface:#111827;--card:#1a2236;--border:#1e2d45;
+      --text:#e2e8f0;--muted:#64748b;--accent:#6366f1;
+    }
+    body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+    nav{
+      background:rgba(17,24,39,.85);backdrop-filter:blur(12px);
+      border-bottom:1px solid var(--border);padding:0 32px;
+      display:flex;align-items:center;justify-content:space-between;height:64px;
+      position:sticky;top:0;z-index:100;
+    }
+    .brand{font-size:1.4rem;font-weight:800;letter-spacing:-.5px}
+    .brand span{color:var(--accent)}
+    nav a{color:var(--muted);text-decoration:none;font-size:.9rem;font-weight:500;
+          padding:6px 14px;border-radius:8px;transition:all .2s}
+    nav a:hover{color:var(--text);background:var(--border)}
+    nav a.active{color:var(--accent);background:#6366f120}
+    .nav-links{display:flex;gap:4px}
+    main{max-width:700px;margin:0 auto;padding:48px 24px}
+    h1{font-size:1.8rem;font-weight:800;margin-bottom:8px}
+    .subtitle{color:var(--muted);margin-bottom:32px}
+    .card{
+      background:var(--card);border:1px solid var(--border);border-radius:16px;
+      padding:32px;
+    }
+    .form-group{margin-bottom:20px}
+    label{display:block;font-size:.85rem;font-weight:600;color:var(--muted);
+          margin-bottom:8px;letter-spacing:.04em;text-transform:uppercase}
+    input{
+      width:100%;padding:12px 16px;background:var(--surface);
+      border:1px solid var(--border);border-radius:10px;color:var(--text);
+      font-family:'JetBrains Mono',monospace;font-size:.9rem;outline:none;
+      transition:border-color .2s;
+    }
+    input:focus{border-color:var(--accent);box-shadow:0 0 0 3px #6366f120}
+    input::placeholder{color:var(--muted)}
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+    .toggle-row{
+      display:flex;align-items:center;justify-content:space-between;
+      padding:12px 0;border-bottom:1px solid var(--border);
+    }
+    .toggle-row:last-child{border-bottom:none}
+    .toggle-label{font-size:.9rem}
+    .toggle-label small{display:block;color:var(--muted);font-size:.8rem;margin-top:2px}
+    /* local/remote tabs */
+    .tabs{display:flex;gap:4px;background:var(--surface);border-radius:10px;
+          padding:4px;margin-bottom:24px}
+    .tab{flex:1;padding:10px;text-align:center;border-radius:8px;cursor:pointer;
+         font-size:.9rem;font-weight:600;color:var(--muted);border:none;
+         background:transparent;transition:all .2s}
+    .tab.active{background:var(--accent);color:#fff}
+    .remote-fields{display:none}
+    .remote-fields.visible{display:block}
+    .btn-scan{
+      width:100%;padding:14px;background:var(--accent);color:#fff;border:none;
+      border-radius:10px;font-size:1rem;font-weight:700;cursor:pointer;
+      transition:all .2s;margin-top:8px;font-family:'Inter',sans-serif;
+    }
+    .btn-scan:hover{background:#4f46e5;transform:translateY(-1px)}
+    .btn-scan:active{transform:translateY(0)}
+    .progress{display:none;margin-top:20px}
+    .progress-bar{
+      height:6px;background:var(--border);border-radius:3px;overflow:hidden;
+      margin:12px 0;
+    }
+    .progress-bar-fill{
+      height:100%;background:linear-gradient(90deg,var(--accent),#818cf8);
+      border-radius:3px;animation:pulse 1.5s ease-in-out infinite alternate;
+    }
+    @keyframes pulse{from{width:20%}to{width:90%}}
+    .progress-text{color:var(--muted);font-size:.9rem;text-align:center}
+    .step-list{margin-top:16px;list-style:none}
+    .step-list li{padding:8px 0;color:var(--muted);display:flex;align-items:center;gap:10px;font-size:.9rem}
+    .step-list li.done{color:#22c55e}
+    .step-list li.active{color:var(--text)}
+    .spinner{width:14px;height:14px;border:2px solid var(--border);
+             border-top-color:var(--accent);border-radius:50%;
+             animation:spin .8s linear infinite;display:inline-block}
+    @keyframes spin{to{transform:rotate(360deg)}}
+  </style>
+</head>
+<body>
+<nav>
+  <div class="brand">Root<span>Sentry</span></div>
+  <div class="nav-links">
+    <a href="/">Dashboard</a>
+    <a href="/scan" class="active">New Scan</a>
+    <a href="/logs">Logs</a>
+  </div>
+</nav>
+
+<main>
+  <h1>⚡ New Scan</h1>
+  <p class="subtitle">Configure and launch a rootkit detection scan on a local or remote system.</p>
+
+  <div class="card">
+    <!-- Target tabs -->
+    <div class="tabs">
+      <button class="tab active" id="tab-local" onclick="setMode('local')">🖥 Local Scan</button>
+      <button class="tab" id="tab-remote" onclick="setMode('remote')">🌐 Remote (SSH)</button>
+    </div>
+
+    <form id="scan-form">
+      <div id="remote-fields" class="remote-fields">
+        <div class="form-group">
+          <label>Target Host / IP</label>
+          <input type="text" name="host" id="host" placeholder="192.168.1.50"/>
+        </div>
+        <div class="form-group">
+          <label>SSH Password</label>
+          <input type="password" name="password" id="password" placeholder="••••••••"/>
+        </div>
+        <div class="row">
+          <div class="form-group">
+            <label>SSH User</label>
+            <input type="text" name="user" id="user" value="root" placeholder="root"/>
+          </div>
+          <div class="form-group">
+            <label>SSH Port</label>
+            <input type="number" name="port" id="port" value="22" min="1" max="65535"/>
+          </div>
+        </div>
+      </div>
+
+      <button type="submit" class="btn-scan">🔍 Start Scan</button>
+    </form>
+
+    <!-- Progress -->
+    <div class="progress" id="progress">
+      <div class="progress-bar"><div class="progress-bar-fill"></div></div>
+      <p class="progress-text" id="progress-text">Initialising scan…</p>
+      <ul class="step-list" id="step-list">
+        <li id="step-proc"><span class="spinner"></span> Scanning processes…</li>
+        <li id="step-sys" style="opacity:.4">Scanning kernel / syscalls…</li>
+        <li id="step-fs"  style="opacity:.4">Scanning filesystem…</li>
+        <li id="step-agg" style="opacity:.4">Aggregating results…</li>
+      </ul>
+    </div>
+  </div>
+</main>
+
+<script>
+let mode = 'local';
+
+function setMode(m) {
+  mode = m;
+  document.getElementById('tab-local').classList.toggle('active', m === 'local');
+  document.getElementById('tab-remote').classList.toggle('active', m === 'remote');
+  document.getElementById('remote-fields').classList.toggle('visible', m === 'remote');
+}
+
+const steps = [
+  {id:'step-proc', msg:'Scanning hidden processes…', delay:0},
+  {id:'step-sys',  msg:'Scanning kernel hooks & modules…', delay:3000},
+  {id:'step-fs',   msg:'Scanning filesystem…', delay:6000},
+  {id:'step-agg',  msg:'Aggregating results…', delay:9000},
+];
+
+function animateSteps() {
+  steps.forEach((s, i) => {
+    setTimeout(() => {
+      if(i > 0) {
+        const prev = document.getElementById(steps[i-1].id);
+        prev.classList.add('done');
+        prev.innerHTML = '✔ ' + steps[i-1].msg;
+      }
+      const el = document.getElementById(s.id);
+      el.style.opacity = '1';
+      el.classList.add('active');
+      document.getElementById('progress-text').textContent = s.msg;
+    }, s.delay);
+  });
+}
+
+function pollScan(scanId) {
+  fetch('/scan/' + scanId + '/json')
+    .then(r => r.json())
+    .then(data => {
+      if(data.status === 'running') {
+        setTimeout(() => pollScan(scanId), 2000);
+      } else {
+        window.location.href = '/scan/' + scanId;
+      }
+    })
+    .catch(() => setTimeout(() => pollScan(scanId), 2000));
+}
+
+document.getElementById('scan-form').addEventListener('submit', function(e) {
+  e.preventDefault();
+  const btn = document.querySelector('.btn-scan');
+  btn.disabled = true;
+  btn.textContent = '⏳ Scanning…';
+  document.getElementById('progress').style.display = 'block';
+  animateSteps();
+
+  const payload = { user: 'root', port: 22 };
+  if(mode === 'remote') {
+    payload.host     = document.getElementById('host').value;
+    payload.password = document.getElementById('password').value;
+    payload.user     = document.getElementById('user').value;
+    payload.port     = parseInt(document.getElementById('port').value);
+  }
+
+  fetch('/scan', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify(payload)
+  })
+  .then(r => r.json())
+  .then(data => {
+    if(data.scan_id) pollScan(data.scan_id);
+  })
+  .catch(err => {
+    btn.disabled = false;
+    btn.textContent = '🔍 Start Scan';
+    alert('Error starting scan: ' + err);
+  });
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>RootSentry — Scan Running</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono&display=swap" rel="stylesheet"/>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{--bg:#0a0f1e;--card:#1a2236;--border:#1e2d45;--text:#e2e8f0;--muted:#64748b;--accent:#6366f1;}
+    body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);
+         min-height:100vh;display:flex;align-items:center;justify-content:center}
+    .box{
+      background:var(--card);border:1px solid var(--border);border-radius:20px;
+      padding:48px;max-width:480px;width:100%;text-align:center;
+    }
+    .pulse-ring{
+      width:80px;height:80px;border-radius:50%;background:#6366f115;
+      border:2px solid var(--accent);margin:0 auto 24px;display:flex;align-items:center;justify-content:center;
+      animation:ring 2s ease-in-out infinite;font-size:2rem;
+    }
+    @keyframes ring{0%,100%{box-shadow:0 0 0 0 #6366f140}50%{box-shadow:0 0 0 16px #6366f100}}
+    h2{font-size:1.4rem;font-weight:800;margin-bottom:8px}
+    p{color:var(--muted);font-size:.9rem;margin-bottom:24px}
+    .progress-bar{height:6px;background:var(--border);border-radius:3px;overflow:hidden}
+    .fill{height:100%;background:linear-gradient(90deg,var(--accent),#818cf8);
+          border-radius:3px;animation:load 2s ease-in-out infinite alternate}
+    @keyframes load{from{width:10%}to{width:90%}}
+    .scan-id{
+      margin-top:20px;font-family:'JetBrains Mono',monospace;font-size:.8rem;
+      color:var(--muted);background:#ffffff08;padding:8px 16px;border-radius:8px;
+    }
+  </style>
+  <script>
+    const scanId = "{{ scan_id }}";
+    function poll() {
+      fetch('/scan/' + scanId + '/json')
+        .then(r => r.json())
+        .then(d => {
+          if(d.status !== 'running') window.location.href = '/scan/' + scanId;
+          else setTimeout(poll, 2000);
+        })
+        .catch(() => setTimeout(poll, 2000));
+    }
+    window.onload = () => setTimeout(poll, 1000);
+  </script>
+</head>
+<body>
+  <div class="box">
+    <div class="pulse-ring">🔍</div>
+    <h2>Scan In Progress</h2>
+    <p>Analysing the target system for rootkit indicators…<br>You'll be redirected automatically when done.</p>
+    <div class="progress-bar"><div class="fill"></div></div>
+    <div class="scan-id">Scan ID: {{ scan_id }}</div>
+  </div>
+</body>
+</html>
