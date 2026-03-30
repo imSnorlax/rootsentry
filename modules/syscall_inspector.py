@@ -64,15 +64,23 @@ def _check_modules(raw_modules: str) -> List[dict]:
 
 # ── /proc/kallsyms reader ────────────────────────────────────────────────────
 
-def _check_kallsyms(raw_kallsyms: str) -> List[dict]:
+def _check_kallsyms(raw_kallsyms: str, kptr_restrict: int = 1) -> List[dict]:
     """
-    Look for suspicious symbols.
+    Look for suspicious symbols in /proc/kallsyms.
+
+    IMPORTANT: On modern Linux (kernel >= 4.15), kptr_restrict defaults to 1
+    or 2, which causes ALL addresses in /proc/kallsyms to show as 0 even for
+    root. This means zeroed addresses CANNOT be used as a reliable indicator
+    of rootkit hooks unless kptr_restrict = 0.
+
     We flag:
-      - Any symbol name containing a known rootkit string
-      - Symbols at address 0x0000000000000000 (often hidden/hooked)
+      - ONLY if kptr_restrict=0: symbols at 0x0 on critical hooks
+      - ALWAYS: symbol names containing known rootkit strings
     """
     findings = []
     seen = set()
+    use_addr_check = (kptr_restrict == 0)
+
     for line in raw_kallsyms.splitlines():
         parts = line.split()
         if len(parts) < 3:
@@ -80,7 +88,7 @@ def _check_kallsyms(raw_kallsyms: str) -> List[dict]:
         addr, _type, sym = parts[0], parts[1], parts[2]
         sym_lower = sym.lower()
 
-        # Check for rootkit-named symbols
+        # Always: check for rootkit-named symbols (name-based, reliable)
         for rootkit in KNOWN_ROOTKITS:
             if rootkit in sym_lower and sym not in seen:
                 seen.add(sym)
@@ -91,8 +99,8 @@ def _check_kallsyms(raw_kallsyms: str) -> List[dict]:
                     "detail": f"Symbol name contains rootkit string '{rootkit}'",
                 })
 
-        # Check for nulled-out addresses on critical syscall hooks
-        if addr == "0000000000000000":
+        # Only when kptr_restrict=0: zeroed address is meaningful
+        if use_addr_check and addr == "0000000000000000":
             for hook in SUSPICIOUS_KALLSYMS:
                 if hook in sym_lower and sym not in seen:
                     seen.add(sym)
@@ -100,7 +108,7 @@ def _check_kallsyms(raw_kallsyms: str) -> List[dict]:
                         "type":   "hidden_symbol",
                         "symbol": sym,
                         "addr":   addr,
-                        "detail": "Address zeroed — likely hidden by rootkit",
+                        "detail": "Address zeroed with kptr_restrict=0 — likely hooked by rootkit",
                     })
     return findings
 
@@ -114,7 +122,24 @@ def _exec(ssh, cmd: str) -> str:
 
 # ── Public API ───────────────────────────────────────────────────────────────
 
+def _read_kptr_restrict(ssh_client=None) -> int:
+    """Read /proc/sys/kernel/kptr_restrict. Returns int (0/1/2). Default 1."""
+    try:
+        if ssh_client:
+            _, stdout, _ = ssh_client.exec_command(
+                "cat /proc/sys/kernel/kptr_restrict 2>/dev/null")
+            val = stdout.read().decode().strip()
+        else:
+            with open("/proc/sys/kernel/kptr_restrict") as f:
+                val = f.read().strip()
+        return int(val)
+    except Exception:
+        return 1   # assume restricted if unreadable
+
+
 def scan_syscalls(ssh_client=None) -> dict:
+    kptr = _read_kptr_restrict(ssh_client)
+
     if ssh_client:
         raw_modules  = _exec(ssh_client, "cat /proc/modules")
         raw_kallsyms = _exec(ssh_client, "cat /proc/kallsyms")
@@ -131,8 +156,13 @@ def scan_syscalls(ssh_client=None) -> dict:
             raw_kallsyms = ""
 
     module_findings   = _check_modules(raw_modules)
-    kallsyms_findings = _check_kallsyms(raw_kallsyms)
+    kallsyms_findings = _check_kallsyms(raw_kallsyms, kptr_restrict=kptr)
     all_findings      = module_findings + kallsyms_findings
+
+    addr_note = (
+        f" (kptr_restrict={kptr}: zeroed-address detection disabled — addresses hidden by kernel)"
+        if kptr > 0 else ""
+    )
 
     return {
         "module": "syscall_inspector",
@@ -140,6 +170,7 @@ def scan_syscalls(ssh_client=None) -> dict:
         "findings": all_findings,
         "summary": (
             f"{len(all_findings)} kernel-level hook(s)/rootkit module(s) detected."
-            if all_findings else "No kernel hooks or rootkit modules detected."
+            if all_findings
+            else f"No kernel hooks or rootkit modules detected.{addr_note}"
         ),
     }
