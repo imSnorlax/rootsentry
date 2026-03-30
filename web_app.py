@@ -103,9 +103,16 @@ def _run_scan_thread(scan_id: str, host: str | None,
             _running_scans[scan_id] = {"status": "done", "result": result}
         log.info("Scan %s complete — %s", scan_id, result.get("risk_level"))
     except Exception as exc:
-        err = {"status": "error", "id": scan_id, "error": str(exc),
-               "host": host or "localhost",
-               "timestamp": datetime.datetime.utcnow().isoformat()}
+        err = {
+            "status":     "error",
+            "id":         scan_id,
+            "error":      str(exc),
+            "host":       host or "localhost",
+            "risk_level": "error",
+            "total_threats": 0,
+            "timestamp":  datetime.datetime.utcnow().isoformat(timespec="seconds") + "Z",
+            "modules":    {},
+        }
         _save_scan(scan_id, err)
         with _lock:
             _running_scans[scan_id] = {"status": "error", "result": err}
