@@ -11,28 +11,57 @@ from typing import List
 
 # ── Known-legitimate SUID binaries (Kali/Ubuntu baseline) ───────────────────
 SUID_WHITELIST = {
-    "/usr/bin/passwd",
-    "/usr/bin/sudo",
-    "/usr/bin/su",
-    "/usr/bin/newgrp",
-    "/usr/bin/gpasswd",
-    "/usr/bin/chsh",
-    "/usr/bin/chfn",
-    "/usr/bin/mount",
-    "/usr/bin/umount",
-    "/usr/bin/pkexec",
+    # Core utils
+    "/usr/bin/passwd", "/usr/bin/sudo", "/usr/bin/su", "/usr/bin/newgrp",
+    "/usr/bin/gpasswd", "/usr/bin/chsh", "/usr/bin/chfn", "/usr/bin/mount",
+    "/usr/bin/umount", "/usr/bin/pkexec", "/usr/bin/fusermount",
+    "/usr/bin/fusermount3", "/usr/bin/vmware-user-suid-wrapper",
+    "/usr/bin/staprun", "/usr/bin/at", "/usr/bin/crontab",
+    "/usr/bin/wall", "/usr/bin/write", "/usr/bin/ssh-agent",
+    "/usr/bin/Xorg", "/usr/bin/dotlockfile", "/usr/bin/expiry",
+    "/usr/bin/newuidmap", "/usr/bin/newgidmap", "/usr/bin/traceroute6.iputils",
+    # /bin alternatives
+    "/bin/mount", "/bin/umount", "/bin/su", "/bin/ping", "/bin/ping6",
+    "/bin/fusermount", "/bin/fusermount3",
+    # /sbin
+    "/usr/sbin/pppd", "/sbin/pppd",
+    # ssh / GPG
     "/usr/lib/openssh/ssh-keysign",
+    "/usr/lib/ssh/ssh-keysign",
+    # dbus / policykit
     "/usr/lib/dbus-1.0/dbus-daemon-launch-helper",
     "/usr/lib/policykit-1/polkit-agent-helper-1",
-    "/usr/sbin/pppd",
-    "/bin/mount",
-    "/bin/umount",
-    "/bin/su",
-    "/bin/ping",
+    "/usr/lib/polkit-1/polkit-agent-helper-1",
+    "/usr/lib/eject/dmcrypt-get-device",
+    # Xorg
+    "/usr/lib/xorg/Xorg.wrap",
+    "/usr/lib/xorg-core/Xorg",
+    # NetworkManager / spice
+    "/usr/lib/spice-gtk/spice-client-glib-usb-acl-helper",
+    "/usr/lib/NetworkManager/nm-openvpn-auth-dialog",
+    # snapd (snap installs duplicate system binaries — auto-handled below)
+    "/usr/lib/snapd/snap-confine",
+    # vmware
+    "/usr/bin/vmware-user-suid-wrapper",
+    # Kali / pentesting tools (common legit SUID)
+    "/usr/bin/nmap",
 }
+
+# Path PREFIXES that are auto-whitelisted (snap duplicates, containers, etc.)
+SUID_WHITELIST_PREFIXES = (
+    "/snap/",           # snap packages contain copies of system binaries
+    "/proc/",           # pseudo-filesystem, never a real binary
+    "/sys/",
+    "/var/lib/docker/", # container layered FS
+    "/run/",
+)
+
+# Only flag SUID binaries in these dirs as REAL threats
+SUID_THREAT_DIRS = ("/tmp", "/dev/shm", "/var/tmp", "/dev/mqueue")
 
 # Directories to scan for world-writable files
 SENSITIVE_DIRS = ["/etc", "/usr/bin", "/usr/sbin", "/bin", "/sbin"]
+
 
 
 # ── Port helpers ─────────────────────────────────────────────────────────────
@@ -136,12 +165,30 @@ def _check_suid_binaries(ssh=None) -> List[dict]:
 
         for raw_path in output.strip().splitlines():
             path = raw_path.strip()
-            if path and path not in SUID_WHITELIST:
-                findings.append({
-                    "type":   "suspicious_suid",
-                    "path":   path,
-                    "detail": "SUID binary not in known-good whitelist",
-                })
+            if not path:
+                continue
+
+            # Auto-whitelist by prefix (snap, proc, sys, docker, etc.)
+            if any(path.startswith(prefix) for prefix in SUID_WHITELIST_PREFIXES):
+                continue
+
+            # In known-good whitelist — skip entirely
+            if path in SUID_WHITELIST:
+                continue
+
+            # Classify: SUID in suspicious temp dirs = REAL threat
+            # SUID elsewhere = informational (unusual but possibly legit)
+            is_threat = any(path.startswith(d) for d in SUID_THREAT_DIRS)
+            findings.append({
+                "type":     "suspicious_suid",
+                "subtype":  "threat" if is_threat else "informational",
+                "path":     path,
+                "detail":   (
+                    "SUID binary in suspicious temp directory — likely dropper!"
+                    if is_threat else
+                    "Unlisted SUID binary (verify manually)"
+                ),
+            })
     except Exception as e:
         findings.append({"type": "error", "detail": str(e)})
     return findings
@@ -178,14 +225,21 @@ def _check_world_writable(ssh=None) -> List[dict]:
 # ── Public API ───────────────────────────────────────────────────────────────
 
 def scan_filesystem(ssh_client=None) -> dict:
-    port_findings   = _check_hidden_ports(ssh_client)
-    suid_findings   = _check_suid_binaries(ssh_client)
+    port_findings    = _check_hidden_ports(ssh_client)
+    suid_findings    = _check_suid_binaries(ssh_client)
     writable_findings = _check_world_writable(ssh_client)
 
-    all_findings = port_findings + suid_findings + writable_findings
+    # Only REAL threats: hidden ports + SUID in /tmp etc.
+    suid_threats      = [f for f in suid_findings if f.get("subtype") == "threat"]
+    suid_informational = [f for f in suid_findings if f.get("subtype") == "informational"]
 
-    # Only ports and SUID count as real threats for risk scoring
-    threat_count = len(port_findings) + len(suid_findings)
+    all_findings = port_findings + suid_findings + writable_findings
+    threat_count = len(port_findings) + len(suid_threats)
+
+    info_note = (
+        f" ({len(suid_informational)} unlisted system SUID binaries — informational only)"
+        if suid_informational else ""
+    )
 
     return {
         "module": "fs_checker",
@@ -194,8 +248,9 @@ def scan_filesystem(ssh_client=None) -> dict:
         "summary": (
             f"{threat_count} filesystem threat(s) detected "
             f"({len(port_findings)} hidden port(s), "
-            f"{len(suid_findings)} suspicious SUID binary/binaries)."
+            f"{len(suid_threats)} malicious SUID binary/binaries).{info_note}"
             if threat_count
-            else "No filesystem threats detected."
+            else f"No real filesystem threats detected.{info_note}"
         ),
     }
+
