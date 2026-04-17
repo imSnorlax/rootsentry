@@ -55,6 +55,11 @@ os.makedirs(REPORTS_DIR, exist_ok=True)
 _running_scans: dict[str, dict] = {}   # scan_id -> {"status": ..., "result": ...}
 _lock = threading.Lock()
 
+# Bug #9 fix: track in-progress remediations so the Flask request returns
+# immediately and the browser can poll for the result.
+_running_remediations: dict[str, dict] = {}  # scan_id -> {"status", "result"}
+_rem_lock = threading.Lock()
+
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -184,44 +189,96 @@ def scan_json(scan_id: str):
 
 @app.route("/remediate/<scan_id>", methods=["POST"])
 def remediate(scan_id: str):
+    """Start an async remediation job and return immediately.
+
+    Bug #9 fix: remediation is now executed in a background daemon thread so
+    it cannot block the Flask worker for the 30-second SSH timeout per command.
+    The browser polls GET /remediate/<id>/status until the job is done.
+    """
     result = _load_scan(scan_id)
     if result is None:
         abort(404)
 
-    data     = request.get_json(silent=True) or {}
-    host     = result.get("host", "localhost")
+    # Reject a duplicate concurrent request for the same scan.
+    with _rem_lock:
+        if scan_id in _running_remediations and \
+                _running_remediations[scan_id]["status"] == "running":
+            return jsonify({"status": "running", "scan_id": scan_id})
+        _running_remediations[scan_id] = {"status": "running", "result": None}
+
+    data      = request.get_json(silent=True) or {}
+    host      = result.get("host", "localhost")
     is_remote = host not in ("localhost", "127.0.0.1", "")
 
-    ssh_client = None
+    ssh_creds: dict = {}
     if is_remote:
         password = data.get("password", "")
-        user     = data.get("user", "root")
-        port     = int(data.get("port", 22))
         if not password:
+            with _rem_lock:
+                _running_remediations.pop(scan_id, None)
             return jsonify({"error": "SSH password required for remote remediation"}), 400
+        ssh_creds = {
+            "host":     host,
+            "port":     int(data.get("port", 22)),
+            "user":     data.get("user", "root"),
+            "password": password,
+        }
+
+    def _remediate_thread():
+        ssh_client = None
         try:
-            import paramiko
-            client = paramiko.SSHClient()
-            client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-            client.connect(hostname=host, port=port, username=user,
-                           password=password, timeout=10,
-                           allow_agent=False, look_for_keys=False)
-            ssh_client = client
-            log.info("Opened SSH for remediation: %s@%s:%s", user, host, port)
+            if ssh_creds:
+                import paramiko
+                client = paramiko.SSHClient()
+                client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+                client.connect(
+                    hostname=ssh_creds["host"],
+                    port=ssh_creds["port"],
+                    username=ssh_creds["user"],
+                    password=ssh_creds["password"],
+                    timeout=10,
+                    allow_agent=False,
+                    look_for_keys=False,
+                )
+                ssh_client = client
+                log.info("Opened SSH for remediation: %s@%s:%s",
+                         ssh_creds["user"], ssh_creds["host"], ssh_creds["port"])
+
+            rem = remediate_scan(result, ssh_client=ssh_client)
+            result["remediation"] = rem
+            _save_scan(scan_id, result)
+            log.info("Remediation for scan %s: %s", scan_id, rem["summary"])
+            with _rem_lock:
+                _running_remediations[scan_id] = {"status": "done", "result": rem}
         except Exception as exc:
-            log.error("SSH connect for remediation failed: %s", exc)
-            return jsonify({"error": f"SSH connection failed: {exc}"}), 500
+            log.error("Remediation thread for scan %s failed: %s", scan_id, exc)
+            err = {"error": str(exc)}
+            with _rem_lock:
+                _running_remediations[scan_id] = {"status": "error", "result": err}
+        finally:
+            if ssh_client:
+                ssh_client.close()
 
-    try:
-        rem = remediate_scan(result, ssh_client=ssh_client)
-    finally:
-        if ssh_client:
-            ssh_client.close()
+    t = threading.Thread(target=_remediate_thread, daemon=True)
+    t.start()
+    return jsonify({"status": "running", "scan_id": scan_id})
 
-    result["remediation"] = rem
-    _save_scan(scan_id, result)
-    log.info("Remediation for scan %s: %s", scan_id, rem["summary"])
-    return jsonify(rem)
+
+@app.route("/remediate/<scan_id>/status", methods=["GET"])
+def remediate_status(scan_id: str):
+    """Poll endpoint: returns the remediation job status and result."""
+    with _rem_lock:
+        info = _running_remediations.get(scan_id)
+
+    if info is None:
+        # No in-memory record — check whether the scan already has remediation
+        # saved from a previous run (e.g. after a server restart).
+        saved = _load_scan(scan_id)
+        if saved and saved.get("remediation"):
+            return jsonify({"status": "done", "result": saved["remediation"]})
+        abort(404)
+
+    return jsonify({"status": info["status"], "result": info["result"]})
 
 
 @app.route("/report/<scan_id>")

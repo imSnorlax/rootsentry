@@ -16,14 +16,20 @@ All actions are logged and returned in the remediation report.
 from __future__ import annotations
 
 import os
+import re
+import shlex
 import signal
 import subprocess
 import datetime
+import threading
 from typing import Optional
 
 # ── Action log ────────────────────────────────────────────────────────────────
+# Bug #11 fix: protect the global log with a lock so concurrent remediations
+# don't interleave or corrupt each other's entries.
 
 _action_log: list[dict] = []
+_log_lock = threading.Lock()
 
 
 def _log(action: str, target: str, success: bool, detail: str = "") -> dict:
@@ -34,27 +40,37 @@ def _log(action: str, target: str, success: bool, detail: str = "") -> dict:
         "success":   success,
         "detail":    detail,
     }
-    _action_log.append(entry)
+    with _log_lock:
+        _action_log.append(entry)
     return entry
 
 
 def get_action_log() -> list[dict]:
-    return list(_action_log)
+    with _log_lock:
+        return list(_action_log)
 
 
 def clear_action_log() -> None:
-    _action_log.clear()
+    with _log_lock:
+        _action_log.clear()
 
 
 # ── SSH helper ────────────────────────────────────────────────────────────────
 
 def _exec(ssh, cmd: str) -> tuple[bool, str]:
-    """Run cmd over SSH. Returns (success, output)."""
+    """Run cmd over SSH. Returns (success, output).
+
+    Bug #1 fix: use the SSH channel exit status instead of treating any
+    stderr output as failure.  Many tools (chattr, iptables, crontab, rmmod)
+    write informational messages to stderr even on success.
+    """
     try:
         _, stdout, stderr = ssh.exec_command(cmd, timeout=30)
-        out = stdout.read().decode(errors="replace").strip()
-        err = stderr.read().decode(errors="replace").strip()
-        return (True, out) if not err else (False, err)
+        out      = stdout.read().decode(errors="replace").strip()
+        err      = stderr.read().decode(errors="replace").strip()
+        exit_code = stdout.channel.recv_exit_status()
+        combined  = out or err
+        return (exit_code == 0, combined)
     except Exception as exc:
         return False, str(exc)
 
@@ -77,10 +93,16 @@ def _run(ssh, cmd: str) -> tuple[bool, str]:
 # ── Stage 1: Kill processes ───────────────────────────────────────────────────
 
 def kill_process(pid: int, ssh=None) -> dict:
-    """SIGKILL a PID."""
+    """SIGKILL a PID.
+
+    Bug #2 fix: for SSH kills, remove the unconditional '|| true' so we get
+    a real exit code, and pass 'ok' through to the log instead of hardcoding
+    True.
+    """
     if ssh:
-        ok, detail = _exec(ssh, f"kill -9 {pid} 2>&1 || true")
-        return _log("kill_process", str(pid), True, f"kill -9 {pid}: {detail or 'OK'}")
+        ok, detail = _exec(ssh, f"kill -9 {pid} 2>&1")
+        # A non-existent PID gives exit 1 — treat that as a failed action.
+        return _log("kill_process", str(pid), ok, f"kill -9 {pid}: {detail or 'OK'}")
     else:
         try:
             os.kill(pid, signal.SIGKILL)
@@ -96,28 +118,38 @@ def kill_process(pid: int, ssh=None) -> dict:
 def kill_port_process(port: int, ssh=None) -> dict:
     """
     Kill whatever process is listening on a port using fuser.
-    Also sends SIGKILL via /proc-based lookup as a fallback.
+
+    Bug #4 fix: pass 'ok' through to the log instead of hardcoding True.
+    We keep '|| true' only on the second fuser call so one protocol failing
+    doesn't mask the overall result.
     """
     cmd = f"fuser -k -n tcp {port} 2>&1; fuser -k -n udp {port} 2>&1; true"
     ok, detail = _run(ssh, cmd)
     return _log("kill_port_process", str(port),
-                True, f"fuser -k port {port}: {detail or 'OK'}")
+                ok, f"fuser -k port {port}: {detail or 'OK'}")
 
 
 def _block_port_iptables(port: int, ssh=None) -> dict:
-    """Drop all traffic to/from a hidden port with iptables."""
+    """Drop all traffic to/from a hidden port with iptables.
+
+    Bug #5 fix: track whether all four iptables rules actually succeeded
+    instead of hardcoding True.
+    """
     cmds = [
         f"iptables -A INPUT  -p tcp --dport {port} -j DROP 2>&1",
         f"iptables -A OUTPUT -p tcp --sport {port} -j DROP 2>&1",
         f"iptables -A INPUT  -p udp --dport {port} -j DROP 2>&1",
         f"iptables -A OUTPUT -p udp --sport {port} -j DROP 2>&1",
     ]
-    details = []
+    details  = []
+    all_ok   = True
     for c in cmds:
-        _, d = _run(ssh, c)
+        ok, d = _run(ssh, c)
+        if not ok:
+            all_ok = False
         if d:
             details.append(d)
-    return _log("block_port_iptables", str(port), True,
+    return _log("block_port_iptables", str(port), all_ok,
                 f"iptables DROP rules added for port {port}" +
                 (f" | {'; '.join(details)}" if details else ""))
 
@@ -128,42 +160,59 @@ def unload_module(module_name: str, ssh=None) -> dict:
     """
     Attempt rmmod, then modprobe -r, then rmmod --force (last resort).
     Also purges from /etc/modules and /etc/modules-load.d/.
+
+    Bug #3 fix: derive overall success from whether at least one removal
+    method worked instead of hardcoding True.
+    Bug #7 fix: escape the module name before embedding it in sed so that
+    names with regex metacharacters or '/' don't break the command.
     """
-    results = []
+    results  = []
+    ok = ok2 = ok3 = False
 
     # Try rmmod first
-    ok, out = _run(ssh, f"rmmod {module_name} 2>&1")
+    ok, out = _run(ssh, f"rmmod {shlex.quote(module_name)} 2>&1")
     if ok:
-        results.append(f"rmmod OK")
+        results.append("rmmod OK")
     else:
         results.append(f"rmmod failed: {out}")
         # Try modprobe -r
-        ok2, out2 = _run(ssh, f"modprobe -r {module_name} 2>&1")
+        ok2, out2 = _run(ssh, f"modprobe -r {shlex.quote(module_name)} 2>&1")
         if ok2:
             results.append("modprobe -r OK")
         else:
             results.append(f"modprobe -r: {out2}")
             # Force remove
-            ok3, out3 = _run(ssh, f"rmmod --force {module_name} 2>&1")
+            ok3, out3 = _run(ssh, f"rmmod --force {shlex.quote(module_name)} 2>&1")
             results.append("rmmod --force OK" if ok3 else f"rmmod --force: {out3}")
 
     # Remove from persistence
+    # Use '|' as the sed delimiter so '/' in the name is safe; also escape
+    # remaining regex metacharacters so the pattern is treated as a literal.
+    safe_pattern = re.escape(module_name)
     persist_cmd = (
-        f"sed -i '/{module_name}/d' /etc/modules 2>/dev/null; "
-        f"rm -f /etc/modules-load.d/{module_name}.conf 2>/dev/null; true"
+        f"sed -i '\\|{safe_pattern}|d' /etc/modules 2>/dev/null; "
+        f"rm -f /etc/modules-load.d/{shlex.quote(module_name + '.conf')} 2>/dev/null; true"
     )
     _run(ssh, persist_cmd)
     results.append("persistence cleaned")
 
-    detail = " | ".join(results)
-    return _log("unload_module", module_name, True, detail)
+    overall_ok = ok or ok2 or ok3
+    detail     = " | ".join(results)
+    return _log("unload_module", module_name, overall_ok, detail)
 
 
 # ── Stage 3: Remove files ─────────────────────────────────────────────────────
 
 def clean_file(path: str, ssh=None) -> dict:
-    """Force-delete a file, clearing immutable bit first if needed."""
-    cmd = f"chattr -i {path!r} 2>/dev/null; rm -f -- {path!r} 2>&1"
+    """Force-delete a file, clearing immutable bit first if needed.
+
+    Bug #8 fix: use shlex.quote() instead of Python's !r repr-quoting.
+    repr() wraps the string in Python single-quotes which break if the path
+    itself contains a single-quote character.  shlex.quote() handles all
+    shell-unsafe characters correctly.
+    """
+    quoted = shlex.quote(path)
+    cmd    = f"chattr -i {quoted} 2>/dev/null; rm -f -- {quoted} 2>&1"
     ok, detail = _run(ssh, cmd)
     return _log("clean_file", path, ok, detail or f"Deleted {path}")
 

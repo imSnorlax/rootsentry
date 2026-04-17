@@ -296,6 +296,11 @@ document.getElementById('modal-cancel').addEventListener('click', () => {
   document.getElementById('ssh-modal').style.display = 'none';
 });
 
+// Bug #10 fix: allow pressing Enter inside the password field to submit.
+document.getElementById('modal-password').addEventListener('keyup', e => {
+  if (e.key === 'Enter') document.getElementById('modal-submit').click();
+});
+
 document.getElementById('modal-submit').addEventListener('click', () => {
   const password = document.getElementById('modal-password').value.trim();
   const user     = document.getElementById('modal-user').value.trim() || 'root';
@@ -307,8 +312,10 @@ document.getElementById('modal-submit').addEventListener('click', () => {
 
 function doRemediate(creds) {
   const btn = document.getElementById('btn-remediate');
-  if(btn) { btn.disabled = true; btn.textContent = '⏳ Remediating…'; }
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Starting…'; }
 
+  // Bug #9 fix: POST returns immediately with {status:'running'}.
+  // We then poll GET /remediate/<id>/status until done.
   fetch('/remediate/{{ scan_id }}', {
     method: 'POST',
     headers: {'Content-Type':'application/json'},
@@ -316,30 +323,59 @@ function doRemediate(creds) {
   })
   .then(r => r.json())
   .then(data => {
-    if(data.error) {
+    if (data.error) {
       alert('Remediation error: ' + data.error);
-      if(btn) { btn.disabled=false; btn.textContent='🛠 Remediate All'; }
+      if (btn) { btn.disabled = false; btn.textContent = '🛠 Remediate All'; }
       return;
     }
-    if(btn) btn.textContent = '✔ Done';
-    const div = document.getElementById('remediation-result');
-    div.style.display = 'block';
-    let html = '<div class="rem-card"><h3>🛠 ' + data.summary + '</h3>';
-    (data.actions||[]).forEach(a => {
-      html += '<div class="rem-action">';
-      html += '<span class="' + (a.success?'ok':'fail') + '">' + (a.success?'✔':'✘') + '</span>';
-      html += '<span style="font-weight:600">' + a.action + '</span>';
-      html += '<span class="mono">' + a.target + '</span>';
-      html += '<span style="color:var(--muted)">' + (a.detail||'') + '</span>';
-      html += '</div>';
-    });
-    html += '</div>';
-    div.innerHTML = html;
+    if (btn) btn.textContent = '⏳ Remediating…';
+    _pollRemediation();
   })
   .catch(e => {
-    if(btn) { btn.disabled=false; btn.textContent='🛠 Remediate All'; }
-    alert('Error: '+e);
+    if (btn) { btn.disabled = false; btn.textContent = '🛠 Remediate All'; }
+    alert('Error: ' + e);
   });
+}
+
+function _pollRemediation() {
+  const btn = document.getElementById('btn-remediate');
+  fetch('/remediate/{{ scan_id }}/status')
+    .then(r => r.json())
+    .then(data => {
+      if (data.status === 'running') {
+        setTimeout(_pollRemediation, 1500);
+        return;
+      }
+      // done or error
+      const result = data.result || {};
+      if (result.error) {
+        alert('Remediation failed: ' + result.error);
+        if (btn) { btn.disabled = false; btn.textContent = '🛠 Remediate All'; }
+        return;
+      }
+      if (btn) btn.textContent = '✔ Done';
+      _renderRemResult(result);
+    })
+    .catch(e => {
+      if (btn) { btn.disabled = false; btn.textContent = '🛠 Remediate All'; }
+      alert('Polling error: ' + e);
+    });
+}
+
+function _renderRemResult(data) {
+  const div = document.getElementById('remediation-result');
+  div.style.display = 'block';
+  let html = '<div class="rem-card"><h3>🛠 ' + (data.summary || '') + '</h3>';
+  (data.actions || []).forEach(a => {
+    html += '<div class="rem-action">';
+    html += '<span class="' + (a.success ? 'ok' : 'fail') + '">' + (a.success ? '✔' : '✘') + '</span>';
+    html += '<span style="font-weight:600">' + a.action + '</span>';
+    html += '<span class="mono">' + a.target + '</span>';
+    html += '<span style="color:var(--muted)">' + (a.detail || '') + '</span>';
+    html += '</div>';
+  });
+  html += '</div>';
+  div.innerHTML = html;
 }
 </script>
 </body>
