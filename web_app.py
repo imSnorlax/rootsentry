@@ -51,8 +51,9 @@ log = logging.getLogger("rootsentry")
 os.makedirs(SCANS_DIR, exist_ok=True)
 os.makedirs(REPORTS_DIR, exist_ok=True)
 
-# ── In-progress scan tracking ─────────────────────────────────────────────────
-_running_scans: dict[str, dict] = {}   # scan_id -> {"status": ..., "result": ...}
+# ── In-progress scan tracking ────────────────────────────────────────────────────────────────
+# scan_id -> {"status": "running"|"done"|"error", "step": <current module>, "result": ...}
+_running_scans: dict[str, dict] = {}
 _lock = threading.Lock()
 
 # Bug #9 fix: track in-progress remediations so the Flask request returns
@@ -95,17 +96,23 @@ def _list_scans() -> list[dict]:
 
 def _run_scan_thread(scan_id: str, host: str | None,
                      password: str | None, user: str, port: int) -> None:
-    """Background thread that runs the full scan."""
+    """Background thread that runs the full scan with real-time progress updates."""
+    def _progress(step: str):
+        with _lock:
+            if scan_id in _running_scans:
+                _running_scans[scan_id]["step"] = step
+
     try:
         from scanner import run_scan
         result = run_scan(host=host or None,
                           password=password or None,
-                          user=user, port=port)
+                          user=user, port=port,
+                          progress_cb=_progress)
         result["id"]        = scan_id
         result["timestamp"] = datetime.datetime.utcnow().isoformat(timespec="seconds") + "Z"
         _save_scan(scan_id, result)
         with _lock:
-            _running_scans[scan_id] = {"status": "done", "result": result}
+            _running_scans[scan_id] = {"status": "done", "step": "done", "result": result}
         log.info("Scan %s complete — %s", scan_id, result.get("risk_level"))
     except Exception as exc:
         err = {
@@ -120,7 +127,7 @@ def _run_scan_thread(scan_id: str, host: str | None,
         }
         _save_scan(scan_id, err)
         with _lock:
-            _running_scans[scan_id] = {"status": "error", "result": err}
+            _running_scans[scan_id] = {"status": "error", "step": "error", "result": err}
         log.error("Scan %s failed: %s", scan_id, exc)
 
 
@@ -147,7 +154,7 @@ def scan_trigger():
 
     scan_id = str(uuid.uuid4())[:8]
     with _lock:
-        _running_scans[scan_id] = {"status": "running", "result": None}
+        _running_scans[scan_id] = {"status": "running", "step": "init", "result": None}
 
     t = threading.Thread(target=_run_scan_thread,
                          args=(scan_id, host, password, user, port),
@@ -180,7 +187,12 @@ def scan_json(scan_id: str):
     with _lock:
         info = _running_scans.get(scan_id)
     if info:
-        return jsonify({"scan_id": scan_id, **info})
+        return jsonify({
+            "scan_id": scan_id,
+            "status":  info["status"],
+            "step":    info.get("step", "init"),
+            "result":  info.get("result"),
+        })
     result = _load_scan(scan_id)
     if result is None:
         abort(404)

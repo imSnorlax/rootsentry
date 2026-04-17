@@ -158,37 +158,101 @@ function setMode(m) {
   document.getElementById('remote-fields').classList.toggle('visible', m === 'remote');
 }
 
-const steps = [
-  {id:'step-proc', msg:'Scanning hidden processes…', delay:0},
-  {id:'step-sys',  msg:'Scanning kernel hooks & modules…', delay:3000},
-  {id:'step-fs',   msg:'Scanning filesystem…', delay:6000},
-  {id:'step-agg',  msg:'Aggregating results…', delay:9000},
+// Map backend step names → ordered UI step IDs and labels.
+const STEP_ORDER = [
+  { step: 'process_scanner',  id: 'step-proc', label: 'Scanning hidden processes…'       },
+  { step: 'syscall_inspector',id: 'step-sys',  label: 'Scanning kernel hooks & modules…' },
+  { step: 'fs_checker',       id: 'step-fs',   label: 'Scanning filesystem…'             },
+  { step: 'aggregating',      id: 'step-agg',  label: 'Aggregating results…'             },
 ];
 
-function animateSteps() {
-  steps.forEach((s, i) => {
-    setTimeout(() => {
-      if(i > 0) {
-        const prev = document.getElementById(steps[i-1].id);
-        prev.classList.add('done');
-        prev.innerHTML = '✔ ' + steps[i-1].msg;
-      }
-      const el = document.getElementById(s.id);
-      el.style.opacity = '1';
-      el.classList.add('active');
-      document.getElementById('progress-text').textContent = s.msg;
-    }, s.delay);
+let _lastRenderedStep = null;
+let _elapsedInterval  = null;
+let _scanStart        = null;
+
+function _renderStep(backendStep) {
+  if (backendStep === _lastRenderedStep) return;   // nothing changed
+  _lastRenderedStep = backendStep;
+
+  // Find the index of the currently active step.
+  let activeIdx = STEP_ORDER.findIndex(s => s.step === backendStep);
+  // 'init' or unknown → nothing active yet; treat as -1
+  if (activeIdx === -1 && backendStep !== 'init') activeIdx = STEP_ORDER.length - 1;
+
+  STEP_ORDER.forEach((s, i) => {
+    const el = document.getElementById(s.id);
+    el.style.opacity = '1';
+
+    if (i < activeIdx) {
+      // Already done
+      el.className = 'done';
+      el.innerHTML = '✔ ' + s.label;
+    } else if (i === activeIdx) {
+      // Currently running
+      el.className = 'active';
+      el.innerHTML = '<span class="spinner"></span> ' + s.label;
+      document.getElementById('progress-text').textContent = s.label;
+    } else {
+      // Not yet reached
+      el.className = '';
+      el.style.opacity = '0.4';
+      el.innerHTML = s.label;
+    }
   });
+}
+
+function _startElapsed() {
+  _scanStart = Date.now();
+  _elapsedInterval = setInterval(() => {
+    const secs = Math.round((Date.now() - _scanStart) / 1000);
+    const waiting = document.getElementById('step-waiting');
+    if (waiting) {
+      waiting.innerHTML = '<span class="spinner"></span> Still running — ' + secs + 's elapsed…';
+    }
+  }, 1000);
+}
+
+function _stopElapsed() {
+  if (_elapsedInterval) { clearInterval(_elapsedInterval); _elapsedInterval = null; }
+}
+
+function _showStillRunning() {
+  // Called once all 4 steps are done cosmetically but backend hasn't finished.
+  if (document.getElementById('step-waiting')) return;
+  const ul = document.getElementById('step-list');
+  const li = document.createElement('li');
+  li.id = 'step-waiting';
+  li.className = 'active';
+  li.style.opacity = '1';
+  ul.appendChild(li);
 }
 
 function pollScan(scanId) {
   fetch('/scan/' + scanId + '/json')
     .then(r => r.json())
     .then(data => {
-      if(data.status === 'running') {
-        setTimeout(() => pollScan(scanId), 2000);
+      const step   = data.step   || 'init';
+      const status = data.status || 'running';
+
+      _renderStep(step);
+
+      if (status === 'running') {
+        // If all 4 steps have lit up but we're still waiting, show the live counter row.
+        if (step === 'aggregating') _showStillRunning();
+        setTimeout(() => pollScan(scanId), 1500);
       } else {
-        window.location.href = '/scan/' + scanId;
+        // Scan complete (done or error) — mark everything done and redirect.
+        _stopElapsed();
+        STEP_ORDER.forEach(s => {
+          const el = document.getElementById(s.id);
+          el.className = 'done';
+          el.style.opacity = '1';
+          el.innerHTML = '✔ ' + s.label;
+        });
+        const waiting = document.getElementById('step-waiting');
+        if (waiting) waiting.remove();
+        document.getElementById('progress-text').textContent = '✔ Scan complete — loading results…';
+        setTimeout(() => { window.location.href = '/scan/' + scanId; }, 400);
       }
     })
     .catch(() => setTimeout(() => pollScan(scanId), 2000));
@@ -199,11 +263,13 @@ document.getElementById('scan-form').addEventListener('submit', function(e) {
   const btn = document.querySelector('.btn-scan');
   btn.disabled = true;
   btn.textContent = '⏳ Scanning…';
+
   document.getElementById('progress').style.display = 'block';
-  animateSteps();
+  _renderStep('init');
+  _startElapsed();
 
   const payload = { user: 'root', port: 22 };
-  if(mode === 'remote') {
+  if (mode === 'remote') {
     payload.host     = document.getElementById('host').value;
     payload.password = document.getElementById('password').value;
     payload.user     = document.getElementById('user').value;
@@ -212,19 +278,22 @@ document.getElementById('scan-form').addEventListener('submit', function(e) {
 
   fetch('/scan', {
     method: 'POST',
-    headers: {'Content-Type':'application/json'},
+    headers: {'Content-Type': 'application/json'},
     body: JSON.stringify(payload)
   })
   .then(r => r.json())
   .then(data => {
-    if(data.scan_id) pollScan(data.scan_id);
+    if (data.scan_id) pollScan(data.scan_id);
   })
   .catch(err => {
+    _stopElapsed();
     btn.disabled = false;
     btn.textContent = '🔍 Start Scan';
     alert('Error starting scan: ' + err);
   });
 });
 </script>
+
+
 </body>
 </html>

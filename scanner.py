@@ -112,28 +112,45 @@ def _print_result(result: dict) -> None:
 # ── Core scan runner ──────────────────────────────────────────────────────────
 
 def run_scan(host: Optional[str] = None, password: Optional[str] = None,
-             user: str = "root", port: int = 22) -> dict:
+             user: str = "root", port: int = 22,
+             progress_cb=None) -> dict:
     """
     Execute all three detection modules.
     If host/password are provided the scan runs remotely over SSH,
     otherwise it runs locally (requires root on Linux).
+
+    progress_cb: optional callable(step: str) invoked before each phase so
+                 callers (e.g. the web dashboard) can report real progress.
+                 Step values: 'process_scanner', 'syscall_inspector',
+                              'fs_checker', 'aggregating'.
     """
+    def _cb(step: str):
+        if progress_cb:
+            try:
+                progress_cb(step)
+            except Exception:
+                pass
+
     ssh = None
     if host and password:
         ssh = _open_ssh(host, password, user=user, port=port)
 
+    _cb("process_scanner")
     print("[*] Scanning processes …")
     proc_result = scan_hidden_processes(ssh_client=ssh)
 
+    _cb("syscall_inspector")
     print("[*] Scanning kernel syscalls / modules …")
     sys_result  = scan_syscalls(ssh_client=ssh)
 
+    _cb("fs_checker")
     print("[*] Scanning filesystem …")
     fs_result   = scan_filesystem(ssh_client=ssh)
 
     if ssh:
         ssh.close()
 
+    _cb("aggregating")
     total_threats = (
         proc_result["threat_count"]
         + sys_result["threat_count"]
