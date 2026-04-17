@@ -151,47 +151,113 @@ def _check_hidden_ports(ssh=None) -> List[dict]:
 
 # ── SUID helpers ─────────────────────────────────────────────────────────────
 
+# Directories to skip entirely — virtual/pseudo/network filesystems that are
+# never real threat locations and make `find /` take forever.
+_SUID_PRUNE_PATHS = (
+    "/proc", "/sys", "/dev", "/run", "/snap",
+    "/var/lib/docker", "/var/lib/lxcfs",
+)
+
+# Real filesystem roots to scan for informational SUID binaries.
+# Deliberately excludes virtual paths listed above.
+_SUID_SCAN_ROOTS = (
+    "/bin", "/sbin", "/usr/bin", "/usr/sbin",
+    "/usr/local/bin", "/usr/local/sbin",
+    "/usr/lib", "/usr/local/lib",
+    "/opt", "/home", "/root",
+)
+
+
 def _check_suid_binaries(ssh=None) -> List[dict]:
-    findings = []
+    """
+    Two-pass SUID scan — fast and exhaustive without crawling virtual FSes.
+
+    Pass 1 (THREAT — instant):   Only scans the suspicious temp directories
+                                  where a rootkit dropper would live.
+    Pass 2 (INFORMATIONAL — fast): Scans real filesystem roots with -xdev
+                                   so it never crosses into /proc, /sys,
+                                   NFS mounts, etc., plus explicit -prune on
+                                   any remaining slow paths.
+    """
+    findings  = []
+    seen_paths: set = set()
+
+    # ── Pass 1: threat directories (fast — tiny trees) ───────────────────────
+    threat_dirs = " ".join(SUID_THREAT_DIRS)
+    threat_cmd  = f"find {threat_dirs} -perm -4000 -type f 2>/dev/null"
     try:
-        cmd = "find / -perm -4000 -type f 2>/dev/null"
         if ssh:
-            _, stdout, _ = ssh.exec_command(cmd)
-            output = stdout.read().decode(errors="replace")
+            _, stdout, _ = ssh.exec_command(threat_cmd)
+            threat_out   = stdout.read().decode(errors="replace")
         else:
-            result = subprocess.run(cmd, shell=True, capture_output=True,
-                                    text=True, timeout=30)
-            output = result.stdout
+            r = subprocess.run(threat_cmd, shell=True, capture_output=True,
+                               text=True, timeout=15)
+            threat_out = r.stdout
 
-        for raw_path in output.strip().splitlines():
-            path = raw_path.strip()
-            if not path:
+        for raw in threat_out.strip().splitlines():
+            path = raw.strip()
+            if path and path not in seen_paths:
+                seen_paths.add(path)
+                findings.append({
+                    "type":    "suspicious_suid",
+                    "subtype": "threat",
+                    "path":    path,
+                    "detail":  "SUID binary in suspicious temp directory — likely dropper!",
+                })
+    except Exception as e:
+        findings.append({"type": "error", "detail": f"SUID threat-dir scan: {e}"})
+
+    # ── Pass 2: real filesystem roots, stay on device, explicit prunes ────────
+    scan_roots  = " ".join(_SUID_SCAN_ROOTS)
+    prune_expr  = " -o ".join(
+        f"-path {p} -prune" for p in _SUID_PRUNE_PATHS
+    )
+    # -xdev: never descend into a different mounted filesystem (NFS, tmpfs, etc.)
+    broad_cmd = (
+        f"find {scan_roots} -xdev \\( {prune_expr} \\) -o "
+        f"\\( -perm -4000 -type f -print \\) 2>/dev/null"
+    )
+    try:
+        if ssh:
+            _, stdout, _ = ssh.exec_command(broad_cmd)
+            broad_out    = stdout.read().decode(errors="replace")
+        else:
+            r = subprocess.run(broad_cmd, shell=True, capture_output=True,
+                               text=True, timeout=60)
+            broad_out = r.stdout
+
+        for raw in broad_out.strip().splitlines():
+            path = raw.strip()
+            if not path or path in seen_paths:
                 continue
+            seen_paths.add(path)
 
-            # Auto-whitelist by prefix (snap, proc, sys, docker, etc.)
-            if any(path.startswith(prefix) for prefix in SUID_WHITELIST_PREFIXES):
+            # Skip whitelisted prefixes and exact matches
+            if any(path.startswith(p) for p in SUID_WHITELIST_PREFIXES):
                 continue
-
-            # In known-good whitelist — skip entirely
             if path in SUID_WHITELIST:
                 continue
 
-            # Classify: SUID in suspicious temp dirs = REAL threat
-            # SUID elsewhere = informational (unusual but possibly legit)
-            is_threat = any(path.startswith(d) for d in SUID_THREAT_DIRS)
+            # Already covered by Pass 1
+            if any(path.startswith(d) for d in SUID_THREAT_DIRS):
+                continue
+
             findings.append({
-                "type":     "suspicious_suid",
-                "subtype":  "threat" if is_threat else "informational",
-                "path":     path,
-                "detail":   (
-                    "SUID binary in suspicious temp directory — likely dropper!"
-                    if is_threat else
-                    "Unlisted SUID binary (verify manually)"
-                ),
+                "type":    "suspicious_suid",
+                "subtype": "informational",
+                "path":    path,
+                "detail":  "Unlisted SUID binary (verify manually)",
             })
+    except subprocess.TimeoutExpired:
+        findings.append({
+            "type":   "error",
+            "detail": "SUID broad scan timed out after 60s — partial results above",
+        })
     except Exception as e:
-        findings.append({"type": "error", "detail": str(e)})
+        findings.append({"type": "error", "detail": f"SUID broad scan: {e}"})
+
     return findings
+
 
 
 # ── World-writable helpers ────────────────────────────────────────────────────
