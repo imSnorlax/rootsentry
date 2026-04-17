@@ -266,21 +266,28 @@ def _remote_scan(ssh) -> dict:
     ps_pids = set(int(p.strip()) for p in raw_b.split() if p.strip().isdigit())
 
     # ── Method C (stat brute-force) ───────────────────────────────────────────
-    # [ -d /proc/N ] calls access()/stat() — NOT getdents64 — so Caraxes can't
-    # filter it. We parallelise across 8 workers to keep it fast.
-    # Use seq to generate the PID range, xargs to fan out the stat checks.
+    # [ -d /proc/N ] calls stat() — NOT getdents64 — so Caraxes can't filter it.
+    #
+    # PERFORMANCE NOTE: we use a single bash for-loop (one shell process) rather
+    # than xargs -P8 -I{} sh -c '...' which would fork a NEW shell per PID
+    # (up to 32768 forks — catastrophically slow over SSH).
+    # A tight bash loop with built-in [ ] is ~2-5s for 32768 iterations.
     pid_max_raw = _exec("cat /proc/sys/kernel/pid_max 2>/dev/null").strip()
     try:
-        pid_max = min(int(pid_max_raw), _DEFAULT_PID_MAX)
+        pid_max = int(pid_max_raw)
     except Exception:
         pid_max = 32768
+    # Cap at 65535 — scanning millions of PIDs over SSH is unreasonable
+    pid_max = min(pid_max, 65535)
 
     brute_cmd = (
-        f"seq 1 {pid_max} | "
-        f"xargs -P8 -I{{}} sh -c '[ -d /proc/{{}} ] && echo {{}}' 2>/dev/null"
+        f"for i in $(seq 1 {pid_max}); "
+        f"do [ -d /proc/$i ] && echo $i; "
+        f"done 2>/dev/null"
     )
-    raw_c     = _exec(brute_cmd)
+    raw_c      = _exec(brute_cmd)
     brute_pids = set(int(p) for p in raw_c.split() if p.isdigit())
+
 
     SKIP = {1, 2}
     hook_hidden = brute_pids - proc_pids - SKIP
