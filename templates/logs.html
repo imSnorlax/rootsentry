@@ -44,7 +44,7 @@
     .topbar-title{font-size:1rem;font-weight:700;color:#fff}
     .topbar-sub{font-size:.72rem;color:var(--dim);margin-top:1px}
     .topbar-right{display:flex;align-items:center;gap:10px}
-    .content{padding:26px 30px;flex:1;display:flex;flex-direction:column}
+    .content{padding:26px 36px;flex:1;display:flex;flex-direction:column;width:100%;max-width:1200px;margin:0 auto}
 
     /* ── TOOLBAR ── */
     .toolbar{display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap}
@@ -194,10 +194,12 @@
           {% elif '[WARNING]' in line or '[WARN]' in line %}{% set lvl = 'WARN' %}{% set lcls = 'line-warn' %}
           {% elif '[DEBUG]' in line %}{% set lvl = 'DEBUG' %}{% set lcls = 'line-dbg' %}
           {% else %}{% set lvl = 'INFO' %}{% set lcls = 'line-info' %}{% endif %}
+          {% set ts = (parts[0] ~ ' ' ~ parts[1]) if parts|length >= 2 else '' %}
+          {% set msg = line.strip()[ts|length:]|trim if ts else line.strip() %}
           <div class="ll {{ lcls }}" data-raw="{{ line.strip()|lower }}" data-level="{{ lvl }}">
-            <span class="ll-ts">{{ (parts[0] ~ ' ' ~ parts[1]) if parts|length >= 2 else '' }}</span>
+            <span class="ll-ts">{{ ts }}</span>
             <span class="ll-lvl lvl-{{ lvl }}">{{ lvl }}</span>
-            <span class="ll-msg">{{ line.strip() }}</span>
+            <span class="ll-msg">{{ msg }}</span>
           </div>
           {% endfor %}
         {% else %}
