@@ -4,285 +4,326 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
   <title>RootSentry — Scan {{ scan_id }}</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
   <style>
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
     :root{
-      --bg:#0a0f1e;--surface:#111827;--card:#1a2236;--border:#1e2d45;
-      --text:#e2e8f0;--muted:#64748b;--accent:#6366f1;
-      --clean:#22c55e;--warn:#f59e0b;--danger:#ef4444;
+      --bg:#060c14;--surface:#0a1628;--card:#0d1e35;--card2:#0f2040;
+      --border:#1a2e4a;--border2:#1e3555;
+      --text:#c8d8e8;--text2:#8aaac8;--dim:#4a6880;
+      --accent:#00ff88;--ag:rgba(0,255,136,.12);--ab:rgba(0,255,136,.28);
+      --danger:#ff4f4f;--dg:rgba(255,79,79,.12);--db:rgba(255,79,79,.25);
+      --warn:#ffb347;--wg:rgba(255,179,71,.12);--wb:rgba(255,179,71,.25);
+      --purple:#b388ff;--pg:rgba(179,136,255,.1);--pb:rgba(179,136,255,.25);
+      --sw:220px;
     }
-    body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
-    nav{
-      background:rgba(17,24,39,.85);backdrop-filter:blur(12px);
-      border-bottom:1px solid var(--border);padding:0 32px;
-      display:flex;align-items:center;justify-content:space-between;height:64px;
-      position:sticky;top:0;z-index:100;
-    }
-    .brand{font-size:1.4rem;font-weight:800;letter-spacing:-.5px}
-    .brand span{color:var(--accent)}
-    nav a{color:var(--muted);text-decoration:none;font-size:.9rem;font-weight:500;
-          padding:6px 14px;border-radius:8px;transition:all .2s}
-    nav a:hover{color:var(--text);background:var(--border)}
-    .nav-links{display:flex;gap:4px}
-    main{max-width:1000px;margin:0 auto;padding:40px 24px}
-    /* header card */
-    .scan-header{
-      border-radius:16px;padding:32px;margin-bottom:24px;
-      background:linear-gradient(135deg,#1a2236,#0a1628);
-      border:1px solid var(--border);
-      display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:20px;
-    }
-    .risk-block h1{font-size:1.6rem;font-weight:800}
-    .risk-block p{color:var(--muted);font-size:.85rem;margin-top:4px;
-                  font-family:'JetBrains Mono',monospace}
-    .risk-badge{
-      padding:12px 36px;border-radius:100px;font-size:1.5rem;font-weight:800;
-      letter-spacing:2px;text-transform:uppercase;border:2px solid;
-    }
-    .risk-badge.infected{color:var(--danger);border-color:var(--danger);background:#ef444415}
-    .risk-badge.suspicious{color:var(--warn);border-color:var(--warn);background:#f59e0b15}
-    .risk-badge.clean{color:var(--clean);border-color:var(--clean);background:#22c55e15}
-    .risk-badge.remediated{color:#a78bfa;border-color:#a78bfa;background:#a78bfa15}
-    .risk-badge.unknown,.risk-badge.error{color:var(--muted);border-color:var(--muted);background:#94a3b815}
-    .rescan-hint{margin-top:10px;font-size:.78rem;color:#a78bfa;opacity:.8}
-    /* meta pills */
-    .meta-row{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:28px}
-    .meta-pill{
-      background:var(--card);border:1px solid var(--border);border-radius:8px;
-      padding:8px 16px;font-size:.82rem;color:var(--muted);
-      display:flex;align-items:center;gap:8px;
-    }
-    .meta-pill strong{color:var(--text);font-family:'JetBrains Mono',monospace}
-    /* action bar */
-    .action-bar{display:flex;gap:12px;margin-bottom:28px;flex-wrap:wrap}
-    .btn{
-      padding:10px 20px;border-radius:10px;font-size:.875rem;font-weight:700;
-      cursor:pointer;border:none;text-decoration:none;display:inline-flex;
-      align-items:center;gap:8px;transition:all .2s;font-family:'Inter',sans-serif;
-    }
-    .btn-primary{background:var(--accent);color:#fff}
-    .btn-primary:hover{background:#4f46e5;transform:translateY(-1px)}
-    .btn-danger{background:#ef444420;color:var(--danger);border:1px solid #ef444440}
-    .btn-danger:hover{background:#ef444430}
-    .btn-success{background:#22c55e20;color:var(--clean);border:1px solid #22c55e40}
-    .btn-success:hover{background:#22c55e30}
-    .btn-secondary{background:var(--card);color:var(--text);border:1px solid var(--border)}
-    .btn-secondary:hover{background:var(--border)}
-    /* module cards */
-    .module-card{
-      background:var(--card);border:1px solid var(--border);border-radius:14px;
-      margin-bottom:18px;overflow:hidden;
-    }
-    .module-header{
-      padding:18px 24px;display:flex;align-items:center;justify-content:space-between;
-      border-bottom:1px solid var(--border);cursor:pointer;
-      transition:background .15s;
-    }
-    .module-header:hover{background:#ffffff04}
-    .module-title{font-weight:700;font-size:.95rem;display:flex;align-items:center;gap:10px}
-    .threat-badge{
-      padding:3px 12px;border-radius:100px;font-size:.75rem;font-weight:800;
-      font-family:'JetBrains Mono',monospace;
-    }
-    .threat-badge.zero{background:#22c55e20;color:var(--clean)}
-    .threat-badge.low{background:#f59e0b20;color:var(--warn)}
-    .threat-badge.high{background:#ef444420;color:var(--danger)}
-    .module-summary{color:var(--muted);font-size:.85rem}
-    .module-body{padding:20px 24px}
-    /* findings table */
-    table{width:100%;border-collapse:collapse;font-size:.875rem}
-    th{text-align:left;padding:8px 12px;color:var(--muted);font-size:.77rem;
-       font-weight:600;letter-spacing:.05em;text-transform:uppercase;
-       background:var(--surface);border-bottom:1px solid var(--border)}
-    td{padding:11px 12px;border-bottom:1px solid #ffffff08;word-break:break-all}
-    tr:last-child td{border-bottom:none}
-    tr:hover td{background:#ffffff04}
-    .ftype{
-      padding:2px 9px;border-radius:6px;font-size:.75rem;font-weight:700;
-    }
-    .ftype-hidden,.ftype-rootkit{background:#ef444420;color:var(--danger)}
-    .ftype-suspicious{background:#f59e0b20;color:var(--warn)}
-    .ftype-world{background:#6366f120;color:var(--accent)}
-    .ftype-error{background:#94a3b815;color:var(--muted)}
-    .mono{font-family:'JetBrains Mono',monospace;font-size:.83rem}
-    .no-findings{color:var(--muted);font-style:italic;padding:12px 0}
-    /* remediation section */
-    #remediation-result{display:none;margin-top:16px}
-    .rem-card{
-      background:#6366f110;border:1px solid #6366f130;border-radius:12px;
-      padding:20px;margin-top:16px;
-    }
-    .rem-card h3{font-size:.95rem;font-weight:700;margin-bottom:12px}
-    .rem-action{display:flex;gap:12px;align-items:center;padding:8px 0;
-                border-bottom:1px solid #ffffff08;font-size:.875rem}
+    body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex}
+
+    /* ── SIDEBAR ── */
+    .sb{width:var(--sw);min-height:100vh;background:linear-gradient(180deg,#0a1826 0%,#060e1a 100%);border-right:1px solid var(--border);position:fixed;top:0;left:0;display:flex;flex-direction:column;z-index:200}
+    .sb-logo{padding:22px 18px;display:flex;align-items:center;gap:11px;border-bottom:1px solid var(--border)}
+    .sb-icon{width:36px;height:36px;background:var(--ag);border:1px solid var(--ab);border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 0 16px rgba(0,255,136,.1)}
+    .sb-icon svg{color:var(--accent)}
+    .sb-brand strong{display:block;font-size:.92rem;font-weight:800;color:#fff;letter-spacing:-.2px}
+    .sb-brand span{font-size:.66rem;color:var(--accent);font-family:'JetBrains Mono',monospace;letter-spacing:.04em}
+    .sb-nav{flex:1;padding:14px 10px}
+    .sb-section{font-size:.62rem;font-weight:700;color:var(--dim);letter-spacing:.12em;text-transform:uppercase;padding:10px 10px 5px;margin-top:6px}
+    .sb-item{display:flex;align-items:center;gap:9px;padding:8px 12px;border-radius:8px;color:var(--text2);text-decoration:none;font-size:.835rem;font-weight:500;transition:all .15s;margin-bottom:1px;position:relative;border:1px solid transparent}
+    .sb-item svg{flex-shrink:0;opacity:.6;transition:opacity .15s}
+    .sb-item:hover{background:rgba(0,255,136,.05);color:var(--text)}
+    .sb-item:hover svg{opacity:1}
+    .sb-item.active{background:var(--ag);color:var(--accent);border-color:var(--ab)}
+    .sb-item.active svg{opacity:1;color:var(--accent)}
+    .sb-item.active::before{content:'';position:absolute;left:-10px;top:22%;height:56%;width:3px;background:var(--accent);border-radius:0 3px 3px 0;box-shadow:0 0 8px var(--accent)}
+    .sb-foot{padding:14px 16px 18px;border-top:1px solid var(--border)}
+    .sb-status{display:flex;align-items:center;gap:8px;font-size:.75rem;color:var(--text2)}
+    .sb-dot{width:7px;height:7px;border-radius:50%;background:var(--accent);box-shadow:0 0 7px var(--accent);animation:blink 2.5s ease-in-out infinite}
+    @keyframes blink{0%,100%{opacity:1}50%{opacity:.35}}
+
+    /* ── MAIN ── */
+    .main{margin-left:var(--sw);flex:1;min-height:100vh;display:flex;flex-direction:column}
+    .topbar{height:60px;background:rgba(6,18,30,.88);backdrop-filter:blur(14px);border-bottom:1px solid var(--border);padding:0 30px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+    .topbar-left{display:flex;align-items:center;gap:14px}
+    .topbar-back{display:flex;align-items:center;gap:6px;color:var(--text2);text-decoration:none;font-size:.8rem;font-weight:600;padding:5px 10px;border-radius:7px;border:1px solid var(--border);transition:all .15s}
+    .topbar-back:hover{color:var(--accent);border-color:var(--ab);background:var(--ag)}
+    .topbar-title{font-size:1rem;font-weight:700;color:#fff}
+    .topbar-sub{font-size:.72rem;color:var(--dim);font-family:'JetBrains Mono',monospace}
+    .topbar-actions{display:flex;align-items:center;gap:8px}
+    .content{padding:26px 30px;flex:1}
+
+    /* ── BUTTONS ── */
+    .btn{display:inline-flex;align-items:center;gap:6px;padding:7px 16px;border-radius:8px;font-size:.8rem;font-weight:700;cursor:pointer;border:none;text-decoration:none;font-family:'Inter',sans-serif;transition:all .2s}
+    .btn-green{background:var(--accent);color:#060c14;box-shadow:0 0 20px rgba(0,255,136,.25)}
+    .btn-green:hover{background:#00e87c;box-shadow:0 0 28px rgba(0,255,136,.4);transform:translateY(-1px)}
+    .btn-red{background:var(--dg);color:var(--danger);border:1px solid var(--db)}
+    .btn-red:hover{background:rgba(255,79,79,.2)}
+    .btn-success{background:rgba(0,255,136,.1);color:var(--accent);border:1px solid var(--ab);pointer-events:none}
+    .btn-ghost{background:transparent;color:var(--text2);border:1px solid var(--border)}
+    .btn-ghost:hover{background:var(--card2);color:var(--text)}
+    .btn-purple{background:var(--pg);color:var(--purple);border:1px solid var(--pb)}
+    .btn-purple:hover{background:rgba(179,136,255,.18)}
+
+    /* ── HERO HEADER ── */
+    .scan-hero{background:linear-gradient(135deg,#0d1e35 0%,#091728 100%);border:1px solid var(--border);border-radius:16px;padding:26px 28px;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:18px;position:relative;overflow:hidden}
+    .scan-hero::before{content:'';position:absolute;top:-60px;right:-60px;width:240px;height:240px;border-radius:50%;opacity:.035;pointer-events:none}
+    .scan-hero.infected::before{background:var(--danger)}
+    .scan-hero.suspicious::before{background:var(--warn)}
+    .scan-hero.clean::before{background:var(--accent)}
+    .scan-hero.remediated::before{background:var(--purple)}
+    .hero-left h1{font-size:1.25rem;font-weight:800;color:#fff;margin-bottom:5px}
+    .hero-left .hero-meta{font-size:.78rem;color:var(--text2);font-family:'JetBrains Mono',monospace}
+    .rescan-hint{font-size:.74rem;color:var(--purple);margin-top:7px;opacity:.85}
+    .risk-badge{padding:10px 28px;border-radius:100px;font-size:1.2rem;font-weight:900;letter-spacing:2px;text-transform:uppercase;border:2px solid;font-family:'JetBrains Mono',monospace}
+    .risk-badge.infected{color:var(--danger);border-color:var(--danger);background:var(--dg);text-shadow:0 0 20px rgba(255,79,79,.5)}
+    .risk-badge.suspicious{color:var(--warn);border-color:var(--warn);background:var(--wg);text-shadow:0 0 20px rgba(255,179,71,.4)}
+    .risk-badge.clean{color:var(--accent);border-color:var(--accent);background:var(--ag);text-shadow:0 0 20px rgba(0,255,136,.4)}
+    .risk-badge.remediated{color:var(--purple);border-color:var(--purple);background:var(--pg);text-shadow:0 0 20px rgba(179,136,255,.4)}
+    .risk-badge.unknown,.risk-badge.error{color:var(--dim);border-color:var(--dim);background:rgba(74,104,128,.1)}
+
+    /* ── META PILLS ── */
+    .meta-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px}
+    .meta-pill{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:7px 14px;font-size:.78rem;color:var(--text2);display:flex;align-items:center;gap:7px}
+    .meta-pill strong{color:var(--text);font-family:'JetBrains Mono',monospace;font-size:.8rem}
+
+    /* ── ACTION BAR ── */
+    .action-bar{display:flex;gap:10px;margin-bottom:22px;flex-wrap:wrap}
+
+    /* ── MODULE CARDS ── */
+    .module-card{background:var(--card);border:1px solid var(--border);border-radius:14px;margin-bottom:14px;overflow:hidden;transition:border-color .2s}
+    .module-card:hover{border-color:var(--border2)}
+    .module-header{padding:16px 22px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;transition:background .15s}
+    .module-header:hover{background:rgba(255,255,255,.02)}
+    .module-header-left{display:flex;align-items:center;gap:12px}
+    .mod-indicator{width:10px;height:10px;border-radius:50%}
+    .mod-indicator.threat{background:var(--danger);box-shadow:0 0 8px var(--danger)}
+    .mod-indicator.clean{background:var(--accent);box-shadow:0 0 8px var(--accent)}
+    .mod-name{font-weight:700;font-size:.9rem;color:#fff}
+    .mod-summary{color:var(--text2);font-size:.8rem}
+    .threat-chip{padding:2px 10px;border-radius:100px;font-size:.7rem;font-weight:800;font-family:'JetBrains Mono',monospace}
+    .threat-chip.zero{background:var(--ag);color:var(--accent)}
+    .threat-chip.low{background:var(--wg);color:var(--warn)}
+    .threat-chip.high{background:var(--dg);color:var(--danger)}
+    .chevron{color:var(--dim);transition:transform .2s;font-size:.8rem}
+
+    /* ── FINDINGS TABLE ── */
+    .mod-body{padding:0 22px 18px}
+    .findings-table{width:100%;border-collapse:collapse;font-size:.835rem}
+    .findings-table th{text-align:left;padding:8px 12px;font-size:.67rem;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:.08em;background:rgba(0,0,0,.2);border-bottom:1px solid var(--border)}
+    .findings-table td{padding:10px 12px;border-bottom:1px solid rgba(255,255,255,.03);word-break:break-all}
+    .findings-table tr:last-child td{border-bottom:none}
+    .findings-table tr:hover td{background:rgba(0,255,136,.02)}
+    .ftype{padding:2px 8px;border-radius:5px;font-size:.7rem;font-weight:700;white-space:nowrap}
+    .ftype-hidden,.ftype-rootkit{background:var(--dg);color:var(--danger)}
+    .ftype-suspicious{background:var(--wg);color:var(--warn)}
+    .ftype-world{background:var(--pg);color:var(--purple)}
+    .ftype-error{background:rgba(100,100,100,.1);color:var(--dim)}
+    .mono{font-family:'JetBrains Mono',monospace;font-size:.8rem}
+    .no-findings{color:var(--dim);font-style:italic;padding:10px 0;font-size:.84rem}
+
+    /* ── REMEDIATION RESULT ── */
+    #remediation-result{display:none;margin-top:14px}
+    .rem-card{background:var(--ag);border:1px solid var(--ab);border-radius:12px;padding:18px 22px;margin-top:14px}
+    .rem-card h3{font-size:.9rem;font-weight:700;color:var(--accent);margin-bottom:14px;display:flex;align-items:center;gap:8px}
+    .rem-action{display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid rgba(0,255,136,.08);font-size:.835rem}
     .rem-action:last-child{border-bottom:none}
-    .ok{color:var(--clean);font-weight:700}
-    .fail{color:var(--danger);font-weight:700}
-    /* SSH modal */
-    .modal-overlay{
-      display:none;position:fixed;inset:0;background:#00000088;
-      backdrop-filter:blur(6px);z-index:999;
-      align-items:center;justify-content:center;
-    }
-    .modal-box{
-      background:#1a2236;border:1px solid #334155;border-radius:18px;
-      padding:36px;width:100%;max-width:420px;
-    }
-    .modal-box h3{font-size:1.1rem;font-weight:800;margin-bottom:6px}
-    .modal-box p{color:var(--muted);font-size:.85rem;margin-bottom:24px}
-    .modal-box label{display:block;font-size:.78rem;font-weight:700;
-      color:var(--muted);letter-spacing:.05em;text-transform:uppercase;margin-bottom:6px}
-    .modal-box input{
-      width:100%;padding:10px 14px;background:#111827;
-      border:1px solid var(--border);border-radius:8px;color:var(--text);
-      font-family:'JetBrains Mono',monospace;font-size:.9rem;outline:none;
-      margin-bottom:16px;transition:border-color .2s;
-    }
+    .ok{color:var(--accent);font-weight:800;font-size:.85rem}
+    .fail{color:var(--danger);font-weight:800;font-size:.85rem}
+
+    /* ── MODAL ── */
+    .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(6px);z-index:999;align-items:center;justify-content:center}
+    .modal-box{background:#0d1e35;border:1px solid #1e3555;border-radius:16px;padding:32px;width:100%;max-width:400px}
+    .modal-box h3{font-size:1rem;font-weight:800;color:#fff;margin-bottom:5px}
+    .modal-box p{color:var(--text2);font-size:.82rem;margin-bottom:22px}
+    .modal-box label{display:block;font-size:.72rem;font-weight:700;color:var(--dim);letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px}
+    .modal-box input{width:100%;padding:9px 13px;background:#091424;border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'JetBrains Mono',monospace;font-size:.88rem;outline:none;margin-bottom:14px;transition:border-color .2s}
     .modal-box input:focus{border-color:var(--accent)}
     .modal-row{display:grid;grid-template-columns:2fr 1fr;gap:12px}
-    .modal-actions{display:flex;gap:10px;margin-top:4px}
+    .modal-actions{display:flex;gap:8px;margin-top:4px}
+
+    .sec-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+    .sec-title{font-size:.75rem;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.1em;display:flex;align-items:center;gap:8px}
+    .sec-title::before{content:'';width:3px;height:13px;background:var(--accent);border-radius:2px;display:inline-block}
   </style>
 </head>
 <body>
-<nav>
-  <div class="brand">Root<span>Sentry</span></div>
-  <div class="nav-links">
-    <a href="/">Dashboard</a>
-    <a href="/scan">New Scan</a>
-    <a href="/logs">Logs</a>
-  </div>
-</nav>
 
-<main>
+<aside class="sb">
+  <div class="sb-logo">
+    <div class="sb-icon">
+      <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+    </div>
+    <div class="sb-brand"><strong>RootSentry</strong><span>detection engine</span></div>
+  </div>
+  <nav class="sb-nav">
+    <div class="sb-section">Main</div>
+    <a href="/" class="sb-item">
+      <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+      Dashboard
+    </a>
+    <a href="/scan" class="sb-item">
+      <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" d="m21 21-4.35-4.35"/></svg>
+      New Scan
+    </a>
+    <div class="sb-section">System</div>
+    <a href="/logs" class="sb-item">
+      <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M4 6h16M4 12h16M4 18h10"/></svg>
+      Logs
+    </a>
+  </nav>
+  <div class="sb-foot"><div class="sb-status"><span class="sb-dot"></span>Engine online</div></div>
+</aside>
+
+<div class="main">
   {% set risk = scan.get('risk_level','unknown') %}
   {% set host = scan.get('host','localhost') %}
   {% set total = scan.get('total_threats',0) %}
 
-  <!-- Header -->
-  <div class="scan-header">
-    <div class="risk-block">
-      <h1>Scan Report</h1>
-      <p>{{ host }} &nbsp;·&nbsp; {{ scan.get('timestamp','—') }}</p>
-      {% if risk == 'remediated' %}
-      <p class="rescan-hint">⚠ Re-scan to confirm the system is clean.</p>
-      {% endif %}
-    </div>
-    <div class="risk-badge {{ risk }}">{{ risk }}</div>
-  </div>
-
-  <!-- Meta -->
-  <div class="meta-row">
-    <div class="meta-pill">🎯 Target <strong>{{ host }}</strong></div>
-    <div class="meta-pill">⚠️ Threats <strong>{{ total }}</strong></div>
-    <div class="meta-pill">🆔 Scan ID <strong>{{ scan_id }}</strong></div>
-    <div class="meta-pill">🕐 Time <strong>{{ scan.get('timestamp','—') }}</strong></div>
-  </div>
-
-  <!-- Action bar -->
-  <div class="action-bar">
-    <a href="/report/{{ scan_id }}" class="btn btn-primary" target="_blank">📄 Download HTML Report</a>
-    {% if not scan.get('remediation') %}
-    <button class="btn btn-danger" id="btn-remediate" onclick="runRemediation()">🛠 Remediate All</button>
-    {% else %}
-    <span class="btn btn-success" style="pointer-events:none">✔ Already Remediated</span>
-    {% endif %}
-    <a href="/" class="btn btn-secondary">← Back to Dashboard</a>
-  </div>
-
-  <!-- Module Cards -->
-  {% for mod_name, mod in scan.get('modules',{}).items() %}
-  {% set tc = mod.get('threat_count',0) %}
-  <div class="module-card">
-    <div class="module-header" onclick="toggle('{{mod_name}}')">
-      <div class="module-title">
-        <span>{% if tc %}🔴{% else %}🟢{% endif %}</span>
-        {{ mod_name }}
-        <span class="threat-badge {% if tc == 0 %}zero{% elif tc <= 2 %}low{% else %}high{% endif %}">
-          {{ tc }} threat{% if tc != 1 %}s{% endif %}
-        </span>
+  <header class="topbar">
+    <div class="topbar-left">
+      <a href="/" class="topbar-back">
+        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" d="m15 18-6-6 6-6"/></svg>
+        Dashboard
+      </a>
+      <div>
+        <div class="topbar-title">Scan Report</div>
+        <div class="topbar-sub">#{{ scan_id }}</div>
       </div>
-      <div class="module-summary">{{ mod.get('summary','') }}</div>
     </div>
-    <div class="module-body" id="body-{{mod_name}}">
-      {% set findings = mod.get('findings',[]) %}
-      {% if findings %}
-      <table>
-        <thead>
-          <tr>
-            <th>Type</th><th>Target</th><th>Detail</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for f in findings %}
-          {% set ftype = f.get('type','') %}
-          <tr>
-            <td>
-              <span class="ftype {% if 'hidden' in ftype or 'rootkit' in ftype %}ftype-hidden{% elif 'suspicious' in ftype %}ftype-suspicious{% elif 'world' in ftype %}ftype-world{% elif 'error' in ftype %}ftype-error{% else %}ftype-suspicious{% endif %}">
-                {{ ftype }}
-              </span>
-            </td>
-            <td class="mono">
-              {{ f.get('pid') or f.get('path') or f.get('port') or f.get('module') or f.get('symbol') or '—' }}
-            </td>
-            <td style="color:var(--muted)">{{ f.get('detail','—') }}</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+    <div class="topbar-actions">
+      <a href="/report/{{ scan_id }}" class="btn btn-ghost" target="_blank">
+        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
+        Export Report
+      </a>
+      {% if not scan.get('remediation') %}
+      <button class="btn btn-red" id="btn-remediate" onclick="runRemediation()">
+        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        Remediate All
+      </button>
       {% else %}
-      <p class="no-findings">✔ No findings in this module.</p>
+      <span class="btn btn-success">
+        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="m9 12 2 2 4-4"/><circle cx="12" cy="12" r="10"/></svg>
+        Remediated
+      </span>
       {% endif %}
     </div>
-  </div>
-  {% endfor %}
+  </header>
 
-  <!-- Remediation result (already done) -->
-  {% if scan.get('remediation') %}
-  <div class="rem-card">
-    <h3>🛠 Remediation — {{ scan.remediation.summary }}</h3>
-    {% for a in scan.remediation.get('actions',[]) %}
-    <div class="rem-action">
-      <span class="{% if a.success %}ok{% else %}fail{% endif %}">{% if a.success %}✔{% else %}✘{% endif %}</span>
-      <span style="font-weight:600">{{ a.action }}</span>
-      <span class="mono">{{ a.target }}</span>
-      <span style="color:var(--muted)">{{ a.get('detail','') }}</span>
+  <div class="content">
+    <!-- Hero -->
+    <div class="scan-hero {{ risk }}">
+      <div class="hero-left">
+        <h1>{{ host }}</h1>
+        <div class="hero-meta">{{ scan.get('timestamp','—') }} &nbsp;·&nbsp; {{ total }} threat{{ 's' if total != 1 else '' }} detected &nbsp;·&nbsp; #{{ scan_id }}</div>
+        {% if risk == 'remediated' %}
+        <div class="rescan-hint">⚠ Re-scan to confirm the system is clean.</div>
+        {% endif %}
+      </div>
+      <div class="risk-badge {{ risk }}">{{ risk }}</div>
+    </div>
+
+    <!-- Meta pills -->
+    <div class="meta-row">
+      <div class="meta-pill">🎯 Target <strong>{{ host }}</strong></div>
+      <div class="meta-pill">⚠ Threats <strong>{{ total }}</strong></div>
+      <div class="meta-pill">🆔 Scan ID <strong>{{ scan_id }}</strong></div>
+      <div class="meta-pill">🕐 Time <strong>{{ scan.get('timestamp','—') }}</strong></div>
+    </div>
+
+    <!-- Modules section -->
+    <div class="sec-hdr"><div class="sec-title">Detection Modules</div></div>
+
+    {% for mod_name, mod in scan.get('modules',{}).items() %}
+    {% set tc = mod.get('threat_count',0) %}
+    <div class="module-card">
+      <div class="module-header" onclick="toggle('{{ mod_name }}', this)">
+        <div class="module-header-left">
+          <span class="mod-indicator {% if tc %}threat{% else %}clean{% endif %}"></span>
+          <div>
+            <div class="mod-name">{{ mod_name }}</div>
+            <div class="mod-summary">{{ mod.get('summary','') }}</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <span class="threat-chip {% if tc==0 %}zero{% elif tc<=2 %}low{% else %}high{% endif %}">
+            {{ tc }} threat{{ 's' if tc != 1 else '' }}
+          </span>
+          <span class="chevron">▼</span>
+        </div>
+      </div>
+      <div class="mod-body" id="body-{{ mod_name }}">
+        {% set findings = mod.get('findings',[]) %}
+        {% if findings %}
+        <table class="findings-table">
+          <thead><tr><th>Type</th><th>Target</th><th>Detail</th></tr></thead>
+          <tbody>
+            {% for f in findings %}
+            {% set ftype = f.get('type','') %}
+            <tr>
+              <td>
+                <span class="ftype {% if 'hidden' in ftype or 'rootkit' in ftype %}ftype-hidden{% elif 'suspicious' in ftype %}ftype-suspicious{% elif 'world' in ftype %}ftype-world{% elif 'error' in ftype %}ftype-error{% else %}ftype-suspicious{% endif %}">
+                  {{ ftype }}
+                </span>
+              </td>
+              <td class="mono">{{ f.get('pid') or f.get('path') or f.get('port') or f.get('module') or f.get('symbol') or '—' }}</td>
+              <td style="color:var(--text2)">{{ f.get('detail','—') }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <p class="no-findings">✔ No findings in this module.</p>
+        {% endif %}
+      </div>
     </div>
     {% endfor %}
+
+    <!-- Already-remediated result (server-rendered) -->
+    {% if scan.get('remediation') %}
+    <div class="rem-card">
+      <h3>
+        <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        {{ scan.remediation.summary }}
+      </h3>
+      {% for a in scan.remediation.get('actions',[]) %}
+      <div class="rem-action">
+        <span class="{% if a.success %}ok{% else %}fail{% endif %}">{% if a.success %}✔{% else %}✘{% endif %}</span>
+        <span style="font-weight:700;min-width:130px">{{ a.action }}</span>
+        <span class="mono" style="color:var(--text2)">{{ a.target }}</span>
+        <span style="color:var(--dim);font-size:.78rem">{{ a.get('detail','') }}</span>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <div id="remediation-result"></div>
   </div>
-  {% endif %}
+</div>
 
-  <div id="remediation-result"></div>
-</main>
-
-<!-- SSH credentials modal -->
+<!-- SSH Modal -->
 <div class="modal-overlay" id="ssh-modal">
   <div class="modal-box">
-    <h3>🔐 SSH Credentials Required</h3>
-    <p>Enter credentials to connect to <strong>{{ scan.get('host','target') }}</strong> and execute remediation commands.</p>
+    <h3>🔐 SSH Credentials</h3>
+    <p>Connect to <strong>{{ scan.get('host','target') }}</strong> to execute remediation.</p>
     <label>Password</label>
     <input type="password" id="modal-password" placeholder="SSH password"/>
     <div class="modal-row">
-      <div>
-        <label>User</label>
-        <input type="text" id="modal-user" value="root" placeholder="root"/>
-      </div>
-      <div>
-        <label>Port</label>
-        <input type="number" id="modal-port" value="22"/>
-      </div>
+      <div><label>User</label><input type="text" id="modal-user" value="root"/></div>
+      <div><label>Port</label><input type="number" id="modal-port" value="22"/></div>
     </div>
     <div class="modal-actions">
-      <button class="btn btn-danger" id="modal-submit" style="flex:1">⚡ Run Remediation</button>
-      <button class="btn btn-secondary" id="modal-cancel">Cancel</button>
+      <button class="btn btn-red" id="modal-submit" style="flex:1">⚡ Run Remediation</button>
+      <button class="btn btn-ghost" id="modal-cancel">Cancel</button>
     </div>
   </div>
 </div>
 
 <script>
-function toggle(mod) {
+function toggle(mod, hdr) {
   const body = document.getElementById('body-' + mod);
-  body.style.display = body.style.display === 'none' ? '' : 'none';
+  const chev = hdr.querySelector('.chevron');
+  const open = body.style.display === 'none';
+  body.style.display = open ? '' : 'none';
+  if(chev) chev.style.transform = open ? '' : 'rotate(-90deg)';
 }
 
 const SCAN_HOST = "{{ scan.get('host','localhost') }}";
@@ -292,20 +333,16 @@ function runRemediation() {
   if (IS_REMOTE) {
     document.getElementById('ssh-modal').style.display = 'flex';
   } else {
-    if(!confirm('This will kill hidden processes and remove suspicious files locally. Continue?')) return;
+    if(!confirm('Kill hidden processes and remove suspicious files locally. Continue?')) return;
     doRemediate({});
   }
 }
-
 document.getElementById('modal-cancel').addEventListener('click', () => {
   document.getElementById('ssh-modal').style.display = 'none';
 });
-
-// Bug #10 fix: allow pressing Enter inside the password field to submit.
 document.getElementById('modal-password').addEventListener('keyup', e => {
   if (e.key === 'Enter') document.getElementById('modal-submit').click();
 });
-
 document.getElementById('modal-submit').addEventListener('click', () => {
   const password = document.getElementById('modal-password').value.trim();
   const user     = document.getElementById('modal-user').value.trim() || 'root';
@@ -318,9 +355,6 @@ document.getElementById('modal-submit').addEventListener('click', () => {
 function doRemediate(creds) {
   const btn = document.getElementById('btn-remediate');
   if (btn) { btn.disabled = true; btn.textContent = '⏳ Starting…'; }
-
-  // Bug #9 fix: POST returns immediately with {status:'running'}.
-  // We then poll GET /remediate/<id>/status until done.
   fetch('/remediate/{{ scan_id }}', {
     method: 'POST',
     headers: {'Content-Type':'application/json'},
@@ -329,15 +363,16 @@ function doRemediate(creds) {
   .then(r => r.json())
   .then(data => {
     if (data.error) {
-      alert('Remediation error: ' + data.error);
-      if (btn) { btn.disabled = false; btn.textContent = '🛠 Remediate All'; }
+      alert('Error: ' + data.error);
+      if (btn) { btn.disabled = false; btn.textContent = 'Remediate All'; }
       return;
     }
     if (btn) btn.textContent = '⏳ Remediating…';
+    _pollFailures = 0;
     _pollRemediation();
   })
   .catch(e => {
-    if (btn) { btn.disabled = false; btn.textContent = '🛠 Remediate All'; }
+    if (btn) { btn.disabled = false; btn.textContent = 'Remediate All'; }
     alert('Error: ' + e);
   });
 }
@@ -348,29 +383,14 @@ const _POLL_MAX_RETRIES = 6;
 function _pollRemediation() {
   const btn = document.getElementById('btn-remediate');
   fetch('/remediate/{{ scan_id }}/status')
-    .then(r => {
-      // Always parse as JSON — the route now returns JSON even for 404.
-      return r.json().then(data => ({ ok: r.ok, status: r.status, data }));
-    })
-    .then(({ ok, status, data }) => {
-      _pollFailures = 0; // reset retry counter on any successful response
-
-      if (data.status === 'running') {
-        setTimeout(_pollRemediation, 1500);
-        return;
-      }
-
-      // Server restarted and lost in-memory state but no saved result yet —
-      // keep polling; the thread may still be running in the reloaded process.
-      if (data.status === 'not_found') {
-        setTimeout(_pollRemediation, 2000);
-        return;
-      }
-
-      // done or error
+    .then(r => r.json().then(data => ({ ok: r.ok, data })))
+    .then(({ ok, data }) => {
+      _pollFailures = 0;
+      if (data.status === 'running') { setTimeout(_pollRemediation, 1500); return; }
+      if (data.status === 'not_found') { setTimeout(_pollRemediation, 2000); return; }
       const result = data.result || {};
       if (result.error) {
-        if (btn) { btn.disabled = false; btn.textContent = '🛠 Remediate All'; }
+        if (btn) { btn.disabled = false; btn.textContent = 'Remediate All'; }
         alert('Remediation failed: ' + result.error);
         return;
       }
@@ -378,56 +398,40 @@ function _pollRemediation() {
       _renderRemResult(result);
     })
     .catch(e => {
-      // "Failed to fetch" = server briefly unreachable (e.g. Werkzeug auto-reload).
-      // Retry with backoff up to _POLL_MAX_RETRIES times before giving up.
       _pollFailures++;
       if (_pollFailures <= _POLL_MAX_RETRIES) {
-        const delay = Math.min(1500 * _pollFailures, 8000);
-        console.warn(`Poll attempt ${_pollFailures}/${_POLL_MAX_RETRIES} failed (${e}), retrying in ${delay}ms…`);
-        setTimeout(_pollRemediation, delay);
+        setTimeout(_pollRemediation, Math.min(1500 * _pollFailures, 8000));
       } else {
-        if (btn) { btn.disabled = false; btn.textContent = '🛠 Remediate All'; }
-        alert(`Remediation polling failed after ${_POLL_MAX_RETRIES} retries.\n\nThe server may have restarted. Check the Flask console for errors, then refresh this page — if remediation completed it will show automatically.`);
+        if (btn) { btn.disabled = false; btn.textContent = 'Remediate All'; }
+        alert('Polling failed after ' + _POLL_MAX_RETRIES + ' retries. Refresh to check results.');
       }
     });
 }
 
 function _renderRemResult(data) {
-  // ── Update the risk badge live ────────────────────────────────────────────
+  // Update badge live
   const badge = document.querySelector('.risk-badge');
-  if (badge) {
-    badge.className = 'risk-badge remediated';
-    badge.textContent = 'remediated';
-  }
-
-  // ── Swap the remediate button ─────────────────────────────────────────────
+  if (badge) { badge.className = 'risk-badge remediated'; badge.textContent = 'remediated'; }
+  const hero = document.querySelector('.scan-hero');
+  if (hero) { hero.className = 'scan-hero remediated'; }
+  // Swap button
   const btn = document.getElementById('btn-remediate');
-  if (btn) {
-    btn.className = 'btn btn-success';
-    btn.disabled = true;
-    btn.style.pointerEvents = 'none';
-    btn.textContent = '✔ Remediated';
+  if (btn) { btn.className = 'btn btn-success'; btn.disabled = true; btn.style.pointerEvents = 'none'; btn.innerHTML = '✔ Remediated'; }
+  // Re-scan hint
+  const heroLeft = document.querySelector('.hero-left');
+  if (heroLeft && !heroLeft.querySelector('.rescan-hint')) {
+    const h = document.createElement('div'); h.className = 'rescan-hint'; h.textContent = '⚠ Re-scan to confirm the system is clean.'; heroLeft.appendChild(h);
   }
-
-  // ── Add re-scan hint under the badge ─────────────────────────────────────
-  const riskBlock = document.querySelector('.risk-block');
-  if (riskBlock && !riskBlock.querySelector('.rescan-hint')) {
-    const hint = document.createElement('p');
-    hint.className = 'rescan-hint';
-    hint.textContent = '⚠ Re-scan to confirm the system is clean.';
-    riskBlock.appendChild(hint);
-  }
-
-  // ── Render action list ────────────────────────────────────────────────────
+  // Action list
   const div = document.getElementById('remediation-result');
   div.style.display = 'block';
   let html = '<div class="rem-card"><h3>🛠 ' + (data.summary || '') + '</h3>';
   (data.actions || []).forEach(a => {
     html += '<div class="rem-action">';
     html += '<span class="' + (a.success ? 'ok' : 'fail') + '">' + (a.success ? '✔' : '✘') + '</span>';
-    html += '<span style="font-weight:600">' + a.action + '</span>';
-    html += '<span class="mono">' + a.target + '</span>';
-    html += '<span style="color:var(--muted)">' + (a.detail || '') + '</span>';
+    html += '<span style="font-weight:700;min-width:130px">' + a.action + '</span>';
+    html += '<span class="mono" style="color:var(--text2)">' + a.target + '</span>';
+    html += '<span style="color:var(--dim);font-size:.78rem">' + (a.detail || '') + '</span>';
     html += '</div>';
   });
   html += '</div>';

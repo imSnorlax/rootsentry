@@ -169,11 +169,7 @@ def unload_module(module_name: str, ssh=None) -> dict:
     """
     Attempt rmmod, then modprobe -r, then rmmod --force (last resort).
     Also purges from /etc/modules and /etc/modules-load.d/.
-
-    Bug #3 fix: derive overall success from whether at least one removal
-    method worked instead of hardcoding True.
-    Bug #7 fix: escape the module name before embedding it in sed so that
-    names with regex metacharacters or '/' don't break the command.
+    After all attempts, verifies the module is truly gone from /proc/modules.
     """
     results  = []
     ok = ok2 = ok3 = False
@@ -195,8 +191,6 @@ def unload_module(module_name: str, ssh=None) -> dict:
             results.append("rmmod --force OK" if ok3 else f"rmmod --force: {out3}")
 
     # Remove from persistence
-    # Use '|' as the sed delimiter so '/' in the name is safe; also escape
-    # remaining regex metacharacters so the pattern is treated as a literal.
     safe_pattern = re.escape(module_name)
     persist_cmd = (
         f"sed -i '\\|{safe_pattern}|d' /etc/modules 2>/dev/null; "
@@ -205,8 +199,17 @@ def unload_module(module_name: str, ssh=None) -> dict:
     _run(ssh, persist_cmd)
     results.append("persistence cleaned")
 
-    overall_ok = ok or ok2 or ok3
-    detail     = " | ".join(results)
+    # Verify the module is actually gone
+    still_there_ok, still_there_out = _run(
+        ssh, f"grep -qw {shlex.quote(module_name)} /proc/modules 2>/dev/null && echo LOADED || echo GONE"
+    )
+    if "LOADED" in still_there_out:
+        results.append("WARNING: module still in /proc/modules after all removal attempts — reboot required")
+        overall_ok = False
+    else:
+        overall_ok = ok or ok2 or ok3
+
+    detail = " | ".join(results)
     return _make_entry("unload_module", module_name, overall_ok, detail)
 
 
@@ -308,6 +311,46 @@ def _clean_persistence(ssh=None, known_rootkits: list[str] | None = None) -> lis
 # scanner never saw the module. This stage blindly tries rmmod on every known
 # rootkit name — a failed rmmod on a non-loaded module is harmless and fast.
 
+def _kill_by_name(ssh=None,
+                   known_rootkits: list[str] | None = None) -> list[dict]:
+    """
+    Stage 0.5 — kill rootkit processes by NAME, not just by stale PID.
+
+    Scans /proc/*/cmdline and /proc/*/comm for strings matching any known
+    rootkit name, then SIGKILLs them.  This catches processes that respawned
+    with a new PID after the original scan was taken.
+    """
+    if known_rootkits is None:
+        from config import KNOWN_ROOTKITS
+        known_rootkits = KNOWN_ROOTKITS
+
+    actions = []
+    pattern = "|".join(re.escape(n) for n in known_rootkits)
+
+    # Use pkill first (handles both comm and cmdline)
+    pkill_cmd = f"pkill -9 -f '{pattern}' 2>&1; true"
+    ok, out = _run(ssh, pkill_cmd)
+    if out:
+        actions.append(_make_entry("pkill_by_name", pattern[:60], ok,
+                                   f"pkill -9 -f: {out[:120]}"))
+
+    # Also walk /proc manually to catch rootkits hiding from pkill itself
+    proc_cmd = (
+        f"for pid in $(ls /proc | grep -E '^[0-9]+$'); do "
+        f"  cmdline=$(cat /proc/$pid/cmdline 2>/dev/null | tr '\\0' ' '); "
+        f"  comm=$(cat /proc/$pid/comm 2>/dev/null); "
+        f"  if echo \"$cmdline $comm\" | grep -Eqi '{pattern}'; then "
+        f"    kill -9 $pid 2>/dev/null && echo \"Killed PID $pid ($comm)\"; "
+        f"  fi; "
+        f"done; true"
+    )
+    ok2, out2 = _run(ssh, proc_cmd)
+    if out2:
+        actions.append(_make_entry("kill_by_name", "rootkit_procs", ok2, out2[:300]))
+
+    return actions
+
+
 def _force_unload_all_known(ssh=None,
                              known_rootkits: list[str] | None = None) -> list[dict]:
     """
@@ -397,7 +440,11 @@ def remediate_scan(scan_result: dict, ssh_client=None,
     # ── 0. Proactive blind-unload (catches hidden/self-hiding modules) ─────
     actions.extend(_force_unload_all_known(ssh))
 
-    # ── 1. Kill hidden processes ───────────────────────────────────────────
+    # ── 0.5. Kill rootkit processes by NAME ───────────────────────────────
+    # Catches processes that respawned with new PIDs after the scan was taken.
+    actions.extend(_kill_by_name(ssh))
+
+    # ── 1. Kill hidden processes (by stale PID from scan) ─────────────────
     if kill_procs:
         proc_mod = mods.get("process_scanner", {})
         for finding in proc_mod.get("findings", []):
@@ -457,6 +504,17 @@ def remediate_scan(scan_result: dict, ssh_client=None,
     succeeded = sum(1 for a in actions if a["success"])
     failed    = len(actions) - succeeded
 
+    # Check if any module unload failed — reboot is the last resort
+    mod_unload_failed = any(
+        not a["success"] and a["action"] in ("unload_module", "force_unload")
+        for a in actions
+    )
+    reboot_note = (
+        " \u26a0 One or more kernel modules could not be unloaded \u2014 "
+        "REBOOT the target to evict them from memory."
+        if mod_unload_failed else ""
+    )
+
     return {
         "status":    "done",
         "host":      scan_result.get("host", "localhost"),
@@ -465,6 +523,6 @@ def remediate_scan(scan_result: dict, ssh_client=None,
         "failed":    failed,
         "summary":   (
             f"Aggressive remediation complete: {succeeded} action(s) succeeded, "
-            f"{failed} failed across {len(actions)} total operations."
+            f"{failed} failed across {len(actions)} total operations.{reboot_note}"
         ),
     }

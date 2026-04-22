@@ -4,126 +4,227 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
   <title>RootSentry — Logs</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
   <style>
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
     :root{
-      --bg:#0a0f1e;--surface:#111827;--card:#1a2236;--border:#1e2d45;
-      --text:#e2e8f0;--muted:#64748b;--accent:#6366f1;
-      --clean:#22c55e;--warn:#f59e0b;--danger:#ef4444;
+      --bg:#060c14;--surface:#0a1628;--card:#0d1e35;--card2:#0f2040;
+      --border:#1a2e4a;--border2:#1e3555;
+      --text:#c8d8e8;--text2:#8aaac8;--dim:#4a6880;
+      --accent:#00ff88;--ag:rgba(0,255,136,.12);--ab:rgba(0,255,136,.28);
+      --danger:#ff4f4f;--warn:#ffb347;--purple:#b388ff;
+      --sw:220px;
     }
-    body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
-    nav{
-      background:rgba(17,24,39,.85);backdrop-filter:blur(12px);
-      border-bottom:1px solid var(--border);padding:0 32px;
-      display:flex;align-items:center;justify-content:space-between;height:64px;
-      position:sticky;top:0;z-index:100;
-    }
-    .brand{font-size:1.4rem;font-weight:800;letter-spacing:-.5px}
-    .brand span{color:var(--accent)}
-    nav a{color:var(--muted);text-decoration:none;font-size:.9rem;font-weight:500;
-          padding:6px 14px;border-radius:8px;transition:all .2s}
-    nav a:hover{color:var(--text);background:var(--border)}
-    nav a.active{color:var(--accent);background:#6366f120}
-    .nav-links{display:flex;gap:4px}
-    main{max-width:1000px;margin:0 auto;padding:40px 24px}
-    h1{font-size:1.6rem;font-weight:800;margin-bottom:8px}
-    .subtitle{color:var(--muted);margin-bottom:24px}
-    .toolbar{display:flex;gap:12px;align-items:center;margin-bottom:16px;flex-wrap:wrap}
-    input[type=text]{
-      flex:1;min-width:200px;padding:10px 16px;background:var(--surface);
-      border:1px solid var(--border);border-radius:10px;color:var(--text);
-      font-family:'JetBrains Mono',monospace;font-size:.85rem;outline:none;
-      transition:border-color .2s;
-    }
+    body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex}
+
+    /* ── SIDEBAR ── */
+    .sb{width:var(--sw);min-height:100vh;background:linear-gradient(180deg,#0a1826 0%,#060e1a 100%);border-right:1px solid var(--border);position:fixed;top:0;left:0;display:flex;flex-direction:column;z-index:200}
+    .sb-logo{padding:22px 18px;display:flex;align-items:center;gap:11px;border-bottom:1px solid var(--border)}
+    .sb-icon{width:36px;height:36px;background:var(--ag);border:1px solid var(--ab);border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 0 16px rgba(0,255,136,.1)}
+    .sb-icon svg{color:var(--accent)}
+    .sb-brand strong{display:block;font-size:.92rem;font-weight:800;color:#fff;letter-spacing:-.2px}
+    .sb-brand span{font-size:.66rem;color:var(--accent);font-family:'JetBrains Mono',monospace;letter-spacing:.04em}
+    .sb-nav{flex:1;padding:14px 10px}
+    .sb-section{font-size:.62rem;font-weight:700;color:var(--dim);letter-spacing:.12em;text-transform:uppercase;padding:10px 10px 5px;margin-top:6px}
+    .sb-item{display:flex;align-items:center;gap:9px;padding:8px 12px;border-radius:8px;color:var(--text2);text-decoration:none;font-size:.835rem;font-weight:500;transition:all .15s;margin-bottom:1px;position:relative;border:1px solid transparent}
+    .sb-item svg{flex-shrink:0;opacity:.6;transition:opacity .15s}
+    .sb-item:hover{background:rgba(0,255,136,.05);color:var(--text)}
+    .sb-item:hover svg{opacity:1}
+    .sb-item.active{background:var(--ag);color:var(--accent);border-color:var(--ab)}
+    .sb-item.active svg{opacity:1;color:var(--accent)}
+    .sb-item.active::before{content:'';position:absolute;left:-10px;top:22%;height:56%;width:3px;background:var(--accent);border-radius:0 3px 3px 0;box-shadow:0 0 8px var(--accent)}
+    .sb-foot{padding:14px 16px 18px;border-top:1px solid var(--border)}
+    .sb-status{display:flex;align-items:center;gap:8px;font-size:.75rem;color:var(--text2)}
+    .sb-dot{width:7px;height:7px;border-radius:50%;background:var(--accent);box-shadow:0 0 7px var(--accent);animation:blink 2.5s ease-in-out infinite}
+    @keyframes blink{0%,100%{opacity:1}50%{opacity:.35}}
+
+    /* ── MAIN ── */
+    .main{margin-left:var(--sw);flex:1;min-height:100vh;display:flex;flex-direction:column}
+    .topbar{height:60px;background:rgba(6,18,30,.88);backdrop-filter:blur(14px);border-bottom:1px solid var(--border);padding:0 30px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+    .topbar-title{font-size:1rem;font-weight:700;color:#fff}
+    .topbar-sub{font-size:.72rem;color:var(--dim);margin-top:1px}
+    .topbar-right{display:flex;align-items:center;gap:10px}
+    .content{padding:26px 30px;flex:1;display:flex;flex-direction:column}
+
+    /* ── TOOLBAR ── */
+    .toolbar{display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap}
+    .search-wrap{flex:1;min-width:220px;position:relative}
+    .search-wrap svg{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--dim);pointer-events:none}
+    input[type=text]{width:100%;padding:8px 12px 8px 36px;background:#091424;border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'JetBrains Mono',monospace;font-size:.84rem;outline:none;transition:border-color .2s}
     input[type=text]:focus{border-color:var(--accent)}
-    input::placeholder{color:var(--muted)}
-    .btn{
-      padding:10px 18px;border-radius:10px;font-size:.85rem;font-weight:700;
-      cursor:pointer;border:none;text-decoration:none;display:inline-flex;
-      align-items:center;gap:6px;transition:all .2s;font-family:'Inter',sans-serif;
-    }
-    .btn-primary{background:var(--accent);color:#fff}
-    .btn-primary:hover{background:#4f46e5}
-    .log-terminal{
-      background:#060d1a;border:1px solid var(--border);border-radius:14px;
-      padding:24px;font-family:'JetBrains Mono',monospace;font-size:.82rem;
-      line-height:1.7;max-height:620px;overflow-y:auto;
-    }
-    .log-line{display:flex;gap:12px;padding:2px 0}
-    .log-line:hover{background:#ffffff05;border-radius:4px}
-    .log-ts{color:#334155;min-width:200px;flex-shrink:0}
-    .log-level{min-width:50px;font-weight:700}
-    .level-INFO{color:#6366f1}
-    .level-WARNING,.level-WARN{color:var(--warn)}
-    .level-ERROR{color:var(--danger)}
-    .level-DEBUG{color:var(--muted)}
-    .log-msg{color:#94a3b8;word-break:break-all}
-    .log-msg .highlight{background:#f59e0b30;color:var(--warn);border-radius:2px;padding:0 2px}
-    .empty{text-align:center;padding:60px;color:var(--muted)}
-    .count-badge{background:var(--card);border:1px solid var(--border);
-                 border-radius:8px;padding:4px 12px;font-size:.8rem;color:var(--muted)}
-    .count-badge span{color:var(--text);font-weight:700}
+    input::placeholder{color:var(--dim)}
+    .count-tag{background:var(--card);border:1px solid var(--border);border-radius:7px;padding:5px 12px;font-size:.76rem;color:var(--text2)}
+    .count-tag strong{color:var(--text)}
+    .btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:8px;font-size:.8rem;font-weight:700;cursor:pointer;border:none;text-decoration:none;font-family:'Inter',sans-serif;transition:all .2s}
+    .btn-ghost{background:transparent;color:var(--text2);border:1px solid var(--border)}
+    .btn-ghost:hover{background:var(--card2);color:var(--text)}
+
+    /* ── LOG FILTER TABS ── */
+    .filter-tabs{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap}
+    .ftab{padding:4px 12px;border-radius:100px;font-size:.72rem;font-weight:700;border:1px solid var(--border);cursor:pointer;color:var(--dim);background:transparent;font-family:'Inter',sans-serif;transition:all .15s}
+    .ftab:hover,.ftab.active-all{color:var(--text);border-color:var(--border2);background:var(--card2)}
+    .ftab.active-err{color:var(--danger);border-color:rgba(255,79,79,.3);background:rgba(255,79,79,.08)}
+    .ftab.active-warn{color:var(--warn);border-color:rgba(255,179,71,.3);background:rgba(255,179,71,.08)}
+    .ftab.active-info{color:var(--accent);border-color:var(--ab);background:var(--ag)}
+
+    /* ── TERMINAL ── */
+    .terminal{background:#030810;border:1px solid var(--border);border-radius:14px;overflow:hidden;flex:1}
+    .terminal::before{content:'';display:block;height:2px;background:linear-gradient(90deg,var(--accent),transparent)}
+    .term-header{padding:10px 18px;background:rgba(0,0,0,.3);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px}
+    .term-dot{width:10px;height:10px;border-radius:50%}
+    .term-dot.r{background:#ff5f57}.term-dot.y{background:#febc2e}.term-dot.g{background:var(--accent)}
+    .term-label{font-family:'JetBrains Mono',monospace;font-size:.72rem;color:var(--dim);margin-left:6px}
+    .term-body{padding:16px 20px;font-family:'JetBrains Mono',monospace;font-size:.8rem;line-height:1.75;max-height:calc(100vh - 260px);overflow-y:auto}
+    .term-body::-webkit-scrollbar{width:5px}
+    .term-body::-webkit-scrollbar-track{background:transparent}
+    .term-body::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+
+    /* ── LOG LINE ── */
+    .ll{display:flex;gap:12px;padding:1px 0;border-radius:4px;transition:background .1s}
+    .ll:hover{background:rgba(255,255,255,.03)}
+    .ll-ts{color:#243650;min-width:185px;flex-shrink:0;font-size:.76rem}
+    .ll-lvl{min-width:38px;font-weight:800;font-size:.76rem;text-align:right;flex-shrink:0}
+    .ll-msg{color:#6a8cac;word-break:break-all;font-size:.8rem}
+    .lvl-INFO{color:#4a7fa0}
+    .lvl-WARNING,.lvl-WARN{color:var(--warn)}
+    .lvl-ERROR{color:var(--danger)}
+    .lvl-DEBUG{color:#2a4a64}
+    .ll.line-err .ll-msg{color:#c47070}
+    .ll.line-warn .ll-msg{color:#c49f60}
+    .ll.line-info{}
+    .empty-term{padding:60px;text-align:center;color:var(--dim)}
+    .empty-term svg{display:block;margin:0 auto 14px;opacity:.2}
+
+    /* Auto-refresh indicator */
+    .refresh-bar{height:2px;background:var(--accent);position:fixed;bottom:0;left:var(--sw);right:0;transform-origin:left;animation:countdown 10s linear infinite}
+    @keyframes countdown{from{transform:scaleX(1)}to{transform:scaleX(0)}}
   </style>
 </head>
 <body>
-<nav>
-  <div class="brand">Root<span>Sentry</span></div>
-  <div class="nav-links">
-    <a href="/">Dashboard</a>
-    <a href="/scan">New Scan</a>
-    <a href="/logs" class="active">Logs</a>
+
+<aside class="sb">
+  <div class="sb-logo">
+    <div class="sb-icon">
+      <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+    </div>
+    <div class="sb-brand"><strong>RootSentry</strong><span>detection engine</span></div>
   </div>
-</nav>
+  <nav class="sb-nav">
+    <div class="sb-section">Main</div>
+    <a href="/" class="sb-item">
+      <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+      Dashboard
+    </a>
+    <a href="/scan" class="sb-item">
+      <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" d="m21 21-4.35-4.35"/></svg>
+      New Scan
+    </a>
+    <div class="sb-section">System</div>
+    <a href="/logs" class="sb-item active">
+      <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M4 6h16M4 12h16M4 18h10"/></svg>
+      Logs
+    </a>
+  </nav>
+  <div class="sb-foot"><div class="sb-status"><span class="sb-dot"></span>Engine online</div></div>
+</aside>
 
-<main>
-  <h1>📋 System Logs</h1>
-  <p class="subtitle">Live output from the RootSentry scan engine.</p>
+<div class="main">
+  <header class="topbar">
+    <div>
+      <div class="topbar-title">System Logs</div>
+      <div class="topbar-sub">Live output from the RootSentry engine — auto-refreshes every 10s</div>
+    </div>
+    <div class="topbar-right">
+      <a href="/logs" class="btn btn-ghost">
+        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" d="M1 4v6h6M23 20v-6h-6"/><path stroke-linecap="round" d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10M23 14l-4.64 4.36A9 9 0 0 1 3.51 15"/></svg>
+        Refresh
+      </a>
+    </div>
+  </header>
 
-  <div class="toolbar">
-    <input type="text" id="filter" placeholder="Filter logs…" oninput="filterLogs()"/>
-    <span class="count-badge">Showing <span id="count">{{ lines|length }}</span> lines</span>
-    <a href="/logs" class="btn btn-primary">🔄 Refresh</a>
-  </div>
-
-  <div class="log-terminal" id="terminal">
-    {% if lines %}
-      {% for line in lines %}
-      {% set parts = line.strip().split(' ') %}
-      <div class="log-line" data-raw="{{ line.strip()|lower }}">
-        <span class="log-ts">{{ parts[0] ~ ' ' ~ parts[1] if parts|length >= 2 else '' }}</span>
-        <span class="log-level level-{% if '[ERROR]' in line %}ERROR{% elif '[WARNING]' in line or '[WARN]' in line %}WARNING{% elif '[DEBUG]' in line %}DEBUG{% else %}INFO{% endif %}">
-          {% if '[ERROR]' in line %}ERR{% elif '[WARNING]' in line or '[WARN]' in line %}WARN{% elif '[DEBUG]' in line %}DBG{% else %}INFO{% endif %}
-        </span>
-        <span class="log-msg">{{ line.strip() | replace(parts[0],'') | replace(parts[1] if parts|length >= 2 else '','')|trim if parts|length >= 2 else line.strip() }}</span>
+  <div class="content">
+    <div class="toolbar">
+      <div class="search-wrap">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" d="m21 21-4.35-4.35"/></svg>
+        <input type="text" id="filter-input" placeholder="Filter logs…" oninput="filterLogs()"/>
       </div>
-      {% endfor %}
-    {% else %}
-    <div class="empty">No log entries yet. Run a scan to generate logs.</div>
-    {% endif %}
+      <div class="count-tag">Showing <strong id="visible-count">{{ lines|length }}</strong> of {{ lines|length }} lines</div>
+    </div>
+
+    <div class="filter-tabs">
+      <button class="ftab active-all" onclick="setLevel('all', this)">All</button>
+      <button class="ftab" onclick="setLevel('ERROR', this)" style="color:var(--danger);border-color:rgba(255,79,79,.25)">Errors</button>
+      <button class="ftab" onclick="setLevel('WARN', this)" style="color:var(--warn);border-color:rgba(255,179,71,.25)">Warnings</button>
+      <button class="ftab" onclick="setLevel('INFO', this)" style="color:var(--accent);border-color:rgba(0,255,136,.2)">Info</button>
+    </div>
+
+    <div class="terminal">
+      <div class="term-header">
+        <span class="term-dot r"></span>
+        <span class="term-dot y"></span>
+        <span class="term-dot g"></span>
+        <span class="term-label">rootsentry.log</span>
+      </div>
+      <div class="term-body" id="terminal">
+        {% if lines %}
+          {% for line in lines %}
+          {% set parts = line.strip().split(' ') %}
+          {% if '[ERROR]' in line %}{% set lvl = 'ERROR' %}{% set lcls = 'line-err' %}
+          {% elif '[WARNING]' in line or '[WARN]' in line %}{% set lvl = 'WARN' %}{% set lcls = 'line-warn' %}
+          {% elif '[DEBUG]' in line %}{% set lvl = 'DEBUG' %}{% set lcls = 'line-dbg' %}
+          {% else %}{% set lvl = 'INFO' %}{% set lcls = 'line-info' %}{% endif %}
+          <div class="ll {{ lcls }}" data-raw="{{ line.strip()|lower }}" data-level="{{ lvl }}">
+            <span class="ll-ts">{{ (parts[0] ~ ' ' ~ parts[1]) if parts|length >= 2 else '' }}</span>
+            <span class="ll-lvl lvl-{{ lvl }}">{{ lvl }}</span>
+            <span class="ll-msg">{{ line.strip() }}</span>
+          </div>
+          {% endfor %}
+        {% else %}
+        <div class="empty-term">
+          <svg width="36" height="36" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" d="M4 6h16M4 12h16M4 18h10"/></svg>
+          No log entries yet. Run a scan to generate logs.
+        </div>
+        {% endif %}
+      </div>
+    </div>
   </div>
-</main>
+</div>
+
+<div class="refresh-bar"></div>
 
 <script>
-// Auto-scroll to bottom
-const term = document.getElementById('terminal');
+const term  = document.getElementById('terminal');
+const count = document.getElementById('visible-count');
+let   activeLvl = 'all';
+
+// Scroll to bottom on load
 term.scrollTop = term.scrollHeight;
 
 function filterLogs() {
-  const q = document.getElementById('filter').value.toLowerCase();
-  const lines = term.querySelectorAll('.log-line');
+  const q   = document.getElementById('filter-input').value.toLowerCase();
+  const all = term.querySelectorAll('.ll');
   let visible = 0;
-  lines.forEach(l => {
-    const raw = l.dataset.raw || '';
-    const show = !q || raw.includes(q);
+  all.forEach(l => {
+    const matchText  = !q || (l.dataset.raw || '').includes(q);
+    const matchLevel = activeLvl === 'all' || (l.dataset.level || '').includes(activeLvl);
+    const show = matchText && matchLevel;
     l.style.display = show ? '' : 'none';
-    if(show) visible++;
+    if (show) visible++;
   });
-  document.getElementById('count').textContent = visible;
+  count.textContent = visible;
+}
+
+function setLevel(lvl, btn) {
+  activeLvl = lvl;
+  document.querySelectorAll('.ftab').forEach(b => {
+    b.className = 'ftab';
+    if (b === btn) b.classList.add('active-' + (lvl === 'all' ? 'all' : lvl === 'ERROR' ? 'err' : lvl === 'WARN' ? 'warn' : 'info'));
+  });
+  filterLogs();
 }
 
 // Auto-refresh every 10s
-setInterval(() => window.location.reload(), 10000);
+setTimeout(() => window.location.reload(), 10000);
 </script>
 </body>
 </html>

@@ -4,149 +4,182 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
   <title>RootSentry — New Scan</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
   <style>
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
     :root{
-      --bg:#0a0f1e;--surface:#111827;--card:#1a2236;--border:#1e2d45;
-      --text:#e2e8f0;--muted:#64748b;--accent:#6366f1;
+      --bg:#060c14;--surface:#0a1628;--card:#0d1e35;--card2:#0f2040;
+      --border:#1a2e4a;--border2:#1e3555;
+      --text:#c8d8e8;--text2:#8aaac8;--dim:#4a6880;
+      --accent:#00ff88;--ag:rgba(0,255,136,.12);--ab:rgba(0,255,136,.28);
+      --danger:#ff4f4f;--dg:rgba(255,79,79,.12);--db:rgba(255,79,79,.25);
+      --warn:#ffb347;--wg:rgba(255,179,71,.12);
+      --sw:220px;
     }
-    body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
-    nav{
-      background:rgba(17,24,39,.85);backdrop-filter:blur(12px);
-      border-bottom:1px solid var(--border);padding:0 32px;
-      display:flex;align-items:center;justify-content:space-between;height:64px;
-      position:sticky;top:0;z-index:100;
-    }
-    .brand{font-size:1.4rem;font-weight:800;letter-spacing:-.5px}
-    .brand span{color:var(--accent)}
-    nav a{color:var(--muted);text-decoration:none;font-size:.9rem;font-weight:500;
-          padding:6px 14px;border-radius:8px;transition:all .2s}
-    nav a:hover{color:var(--text);background:var(--border)}
-    nav a.active{color:var(--accent);background:#6366f120}
-    .nav-links{display:flex;gap:4px}
-    main{max-width:700px;margin:0 auto;padding:48px 24px}
-    h1{font-size:1.8rem;font-weight:800;margin-bottom:8px}
-    .subtitle{color:var(--muted);margin-bottom:32px}
-    .card{
-      background:var(--card);border:1px solid var(--border);border-radius:16px;
-      padding:32px;
-    }
-    .form-group{margin-bottom:20px}
-    label{display:block;font-size:.85rem;font-weight:600;color:var(--muted);
-          margin-bottom:8px;letter-spacing:.04em;text-transform:uppercase}
-    input{
-      width:100%;padding:12px 16px;background:var(--surface);
-      border:1px solid var(--border);border-radius:10px;color:var(--text);
-      font-family:'JetBrains Mono',monospace;font-size:.9rem;outline:none;
-      transition:border-color .2s;
-    }
-    input:focus{border-color:var(--accent);box-shadow:0 0 0 3px #6366f120}
-    input::placeholder{color:var(--muted)}
-    .row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-    .toggle-row{
-      display:flex;align-items:center;justify-content:space-between;
-      padding:12px 0;border-bottom:1px solid var(--border);
-    }
-    .toggle-row:last-child{border-bottom:none}
-    .toggle-label{font-size:.9rem}
-    .toggle-label small{display:block;color:var(--muted);font-size:.8rem;margin-top:2px}
-    /* local/remote tabs */
-    .tabs{display:flex;gap:4px;background:var(--surface);border-radius:10px;
-          padding:4px;margin-bottom:24px}
-    .tab{flex:1;padding:10px;text-align:center;border-radius:8px;cursor:pointer;
-         font-size:.9rem;font-weight:600;color:var(--muted);border:none;
-         background:transparent;transition:all .2s}
-    .tab.active{background:var(--accent);color:#fff}
+    body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex}
+
+    /* ── SIDEBAR ── */
+    .sb{width:var(--sw);min-height:100vh;background:linear-gradient(180deg,#0a1826 0%,#060e1a 100%);border-right:1px solid var(--border);position:fixed;top:0;left:0;display:flex;flex-direction:column;z-index:200}
+    .sb-logo{padding:22px 18px;display:flex;align-items:center;gap:11px;border-bottom:1px solid var(--border)}
+    .sb-icon{width:36px;height:36px;background:var(--ag);border:1px solid var(--ab);border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 0 16px rgba(0,255,136,.1)}
+    .sb-icon svg{color:var(--accent)}
+    .sb-brand strong{display:block;font-size:.92rem;font-weight:800;color:#fff;letter-spacing:-.2px}
+    .sb-brand span{font-size:.66rem;color:var(--accent);font-family:'JetBrains Mono',monospace;letter-spacing:.04em}
+    .sb-nav{flex:1;padding:14px 10px}
+    .sb-section{font-size:.62rem;font-weight:700;color:var(--dim);letter-spacing:.12em;text-transform:uppercase;padding:10px 10px 5px;margin-top:6px}
+    .sb-item{display:flex;align-items:center;gap:9px;padding:8px 12px;border-radius:8px;color:var(--text2);text-decoration:none;font-size:.835rem;font-weight:500;transition:all .15s;margin-bottom:1px;position:relative;border:1px solid transparent}
+    .sb-item svg{flex-shrink:0;opacity:.6;transition:opacity .15s}
+    .sb-item:hover{background:rgba(0,255,136,.05);color:var(--text)}
+    .sb-item:hover svg{opacity:1}
+    .sb-item.active{background:var(--ag);color:var(--accent);border-color:var(--ab)}
+    .sb-item.active svg{opacity:1;color:var(--accent)}
+    .sb-item.active::before{content:'';position:absolute;left:-10px;top:22%;height:56%;width:3px;background:var(--accent);border-radius:0 3px 3px 0;box-shadow:0 0 8px var(--accent)}
+    .sb-foot{padding:14px 16px 18px;border-top:1px solid var(--border)}
+    .sb-status{display:flex;align-items:center;gap:8px;font-size:.75rem;color:var(--text2)}
+    .sb-dot{width:7px;height:7px;border-radius:50%;background:var(--accent);box-shadow:0 0 7px var(--accent);animation:blink 2.5s ease-in-out infinite}
+    @keyframes blink{0%,100%{opacity:1}50%{opacity:.35}}
+
+    /* ── MAIN ── */
+    .main{margin-left:var(--sw);flex:1;min-height:100vh;display:flex;flex-direction:column}
+    .topbar{height:60px;background:rgba(6,18,30,.88);backdrop-filter:blur(14px);border-bottom:1px solid var(--border);padding:0 30px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+    .topbar-title{font-size:1rem;font-weight:700;color:#fff}
+    .topbar-sub{font-size:.72rem;color:var(--dim);margin-top:1px}
+    .content{padding:30px;flex:1;max-width:700px}
+
+    /* ── FORM CARD ── */
+    .form-card{background:var(--card);border:1px solid var(--border);border-radius:16px;overflow:hidden}
+    .form-card::before{content:'';display:block;height:2px;background:linear-gradient(90deg,var(--accent),transparent)}
+    .form-inner{padding:28px 32px}
+    .form-group{margin-bottom:18px}
+    label{display:block;font-size:.71rem;font-weight:700;color:var(--dim);letter-spacing:.08em;text-transform:uppercase;margin-bottom:7px}
+    input[type=text],input[type=password],input[type=number]{width:100%;padding:10px 14px;background:#091424;border:1px solid var(--border);border-radius:9px;color:var(--text);font-family:'JetBrains Mono',monospace;font-size:.88rem;outline:none;transition:border-color .2s,box-shadow .2s}
+    input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(0,255,136,.1)}
+    input::placeholder{color:var(--dim)}
+    .row-2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+
+    /* ── TABS ── */
+    .tabs{display:flex;gap:4px;background:#091424;border-radius:10px;padding:4px;margin-bottom:24px;border:1px solid var(--border)}
+    .tab{flex:1;padding:9px;text-align:center;border-radius:7px;cursor:pointer;font-size:.84rem;font-weight:600;color:var(--dim);border:none;background:transparent;transition:all .2s;font-family:'Inter',sans-serif}
+    .tab.active{background:var(--accent);color:#060c14;box-shadow:0 0 16px rgba(0,255,136,.3)}
     .remote-fields{display:none}
     .remote-fields.visible{display:block}
-    .btn-scan{
-      width:100%;padding:14px;background:var(--accent);color:#fff;border:none;
-      border-radius:10px;font-size:1rem;font-weight:700;cursor:pointer;
-      transition:all .2s;margin-top:8px;font-family:'Inter',sans-serif;
-    }
-    .btn-scan:hover{background:#4f46e5;transform:translateY(-1px)}
-    .btn-scan:active{transform:translateY(0)}
-    .progress{display:none;margin-top:20px}
-    .progress-bar{
-      height:6px;background:var(--border);border-radius:3px;overflow:hidden;
-      margin:12px 0;
-    }
-    .progress-bar-fill{
-      height:100%;background:linear-gradient(90deg,var(--accent),#818cf8);
-      border-radius:3px;animation:pulse 1.5s ease-in-out infinite alternate;
-    }
-    @keyframes pulse{from{width:20%}to{width:90%}}
-    .progress-text{color:var(--muted);font-size:.9rem;text-align:center}
-    .step-list{margin-top:16px;list-style:none}
-    .step-list li{padding:8px 0;color:var(--muted);display:flex;align-items:center;gap:10px;font-size:.9rem}
-    .step-list li.done{color:#22c55e}
+
+    /* ── SCAN BUTTON ── */
+    .btn-scan{width:100%;padding:13px;background:var(--accent);color:#060c14;border:none;border-radius:10px;font-size:.95rem;font-weight:800;cursor:pointer;transition:all .2s;margin-top:4px;font-family:'Inter',sans-serif;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 0 24px rgba(0,255,136,.25)}
+    .btn-scan:hover{background:#00e87c;box-shadow:0 0 32px rgba(0,255,136,.4);transform:translateY(-1px)}
+    .btn-scan:disabled{opacity:.5;cursor:not-allowed;transform:none}
+
+    /* ── PROGRESS ── */
+    .progress-panel{display:none;margin-top:22px;padding-top:22px;border-top:1px solid var(--border)}
+    .p-bar-track{height:4px;background:var(--border);border-radius:2px;margin-bottom:18px;overflow:hidden}
+    .p-bar-fill{height:100%;background:linear-gradient(90deg,var(--accent),#00ccff);border-radius:2px;animation:pfill 2s ease-in-out infinite alternate}
+    @keyframes pfill{from{width:10%}to{width:92%}}
+    .p-label{font-size:.82rem;color:var(--text2);margin-bottom:14px;font-family:'JetBrains Mono',monospace}
+    .step-list{list-style:none}
+    .step-list li{display:flex;align-items:center;gap:10px;padding:7px 0;font-size:.84rem;color:var(--dim);transition:color .2s;border-bottom:1px solid rgba(255,255,255,.03)}
+    .step-list li:last-child{border-bottom:none}
+    .step-list li.done{color:var(--accent)}
     .step-list li.active{color:var(--text)}
-    .spinner{width:14px;height:14px;border:2px solid var(--border);
-             border-top-color:var(--accent);border-radius:50%;
-             animation:spin .8s linear infinite;display:inline-block}
+    .spinner{width:13px;height:13px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;display:inline-block;flex-shrink:0}
+    .step-icon{width:13px;text-align:center;flex-shrink:0}
     @keyframes spin{to{transform:rotate(360deg)}}
+
+    /* ── INFO BOX ── */
+    .info-box{background:rgba(0,255,136,.06);border:1px solid var(--ab);border-radius:10px;padding:12px 16px;margin-bottom:20px;font-size:.8rem;color:var(--text2);display:flex;align-items:flex-start;gap:10px}
+    .info-box svg{color:var(--accent);flex-shrink:0;margin-top:1px}
   </style>
 </head>
 <body>
-<nav>
-  <div class="brand">Root<span>Sentry</span></div>
-  <div class="nav-links">
-    <a href="/">Dashboard</a>
-    <a href="/scan" class="active">New Scan</a>
-    <a href="/logs">Logs</a>
-  </div>
-</nav>
 
-<main>
-  <h1>⚡ New Scan</h1>
-  <p class="subtitle">Configure and launch a rootkit detection scan on a local or remote system.</p>
-
-  <div class="card">
-    <!-- Target tabs -->
-    <div class="tabs">
-      <button class="tab active" id="tab-local" onclick="setMode('local')">🖥 Local Scan</button>
-      <button class="tab" id="tab-remote" onclick="setMode('remote')">🌐 Remote (SSH)</button>
+<aside class="sb">
+  <div class="sb-logo">
+    <div class="sb-icon">
+      <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
     </div>
+    <div class="sb-brand"><strong>RootSentry</strong><span>detection engine</span></div>
+  </div>
+  <nav class="sb-nav">
+    <div class="sb-section">Main</div>
+    <a href="/" class="sb-item">
+      <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+      Dashboard
+    </a>
+    <a href="/scan" class="sb-item active">
+      <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" d="m21 21-4.35-4.35"/></svg>
+      New Scan
+    </a>
+    <div class="sb-section">System</div>
+    <a href="/logs" class="sb-item">
+      <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M4 6h16M4 12h16M4 18h10"/></svg>
+      Logs
+    </a>
+  </nav>
+  <div class="sb-foot"><div class="sb-status"><span class="sb-dot"></span>Engine online</div></div>
+</aside>
 
-    <form id="scan-form">
-      <div id="remote-fields" class="remote-fields">
-        <div class="form-group">
-          <label>Target Host / IP</label>
-          <input type="text" name="host" id="host" placeholder="192.168.1.50"/>
+<div class="main">
+  <header class="topbar">
+    <div>
+      <div class="topbar-title">New Scan</div>
+      <div class="topbar-sub">Configure and launch a rootkit detection scan</div>
+    </div>
+  </header>
+
+  <div class="content">
+    <div class="form-card">
+      <div class="form-inner">
+        <div class="tabs">
+          <button class="tab active" id="tab-local" onclick="setMode('local')">🖥 Local Scan</button>
+          <button class="tab" id="tab-remote" onclick="setMode('remote')">🌐 Remote (SSH)</button>
         </div>
-        <div class="form-group">
-          <label>SSH Password</label>
-          <input type="password" name="password" id="password" placeholder="••••••••"/>
+
+        <div class="info-box" id="info-box">
+          <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path stroke-linecap="round" d="M12 16v-4m0-4h.01"/></svg>
+          <span>Scanning the <strong style="color:var(--accent)">local machine</strong>. Uses stat-brute-force, proc analysis and ftrace hook detection.</span>
         </div>
-        <div class="row">
-          <div class="form-group">
-            <label>SSH User</label>
-            <input type="text" name="user" id="user" value="root" placeholder="root"/>
+
+        <form id="scan-form">
+          <div id="remote-fields" class="remote-fields">
+            <div class="form-group">
+              <label>Target Host / IP</label>
+              <input type="text" name="host" id="host" placeholder="192.168.1.50"/>
+            </div>
+            <div class="form-group">
+              <label>SSH Password</label>
+              <input type="password" name="password" id="password" placeholder="••••••••"/>
+            </div>
+            <div class="row-2">
+              <div class="form-group">
+                <label>SSH User</label>
+                <input type="text" name="user" id="user" value="root"/>
+              </div>
+              <div class="form-group">
+                <label>SSH Port</label>
+                <input type="number" name="port" id="port" value="22" min="1" max="65535"/>
+              </div>
+            </div>
           </div>
-          <div class="form-group">
-            <label>SSH Port</label>
-            <input type="number" name="port" id="port" value="22" min="1" max="65535"/>
-          </div>
+
+          <button type="submit" class="btn-scan" id="btn-scan">
+            <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" d="m21 21-4.35-4.35"/></svg>
+            Start Scan
+          </button>
+        </form>
+
+        <div class="progress-panel" id="progress-panel">
+          <div class="p-bar-track"><div class="p-bar-fill"></div></div>
+          <div class="p-label" id="p-label">Initialising scan…</div>
+          <ul class="step-list" id="step-list">
+            <li id="step-proc"><span class="spinner"></span>Scanning hidden processes…</li>
+            <li id="step-sys" style="opacity:.4">Scanning kernel hooks &amp; modules…</li>
+            <li id="step-fs"  style="opacity:.4">Scanning filesystem…</li>
+            <li id="step-agg" style="opacity:.4">Aggregating results…</li>
+          </ul>
         </div>
       </div>
-
-      <button type="submit" class="btn-scan">🔍 Start Scan</button>
-    </form>
-
-    <!-- Progress -->
-    <div class="progress" id="progress">
-      <div class="progress-bar"><div class="progress-bar-fill"></div></div>
-      <p class="progress-text" id="progress-text">Initialising scan…</p>
-      <ul class="step-list" id="step-list">
-        <li id="step-proc"><span class="spinner"></span> Scanning processes…</li>
-        <li id="step-sys" style="opacity:.4">Scanning kernel / syscalls…</li>
-        <li id="step-fs"  style="opacity:.4">Scanning filesystem…</li>
-        <li id="step-agg" style="opacity:.4">Aggregating results…</li>
-      </ul>
     </div>
   </div>
-</main>
+</div>
 
 <script>
 let mode = 'local';
@@ -156,102 +189,76 @@ function setMode(m) {
   document.getElementById('tab-local').classList.toggle('active', m === 'local');
   document.getElementById('tab-remote').classList.toggle('active', m === 'remote');
   document.getElementById('remote-fields').classList.toggle('visible', m === 'remote');
+  const info = document.getElementById('info-box');
+  info.querySelector('span').innerHTML = m === 'local'
+    ? 'Scanning the <strong style="color:var(--accent)">local machine</strong>. Uses stat-brute-force, proc analysis and ftrace hook detection.'
+    : 'Scanning a <strong style="color:var(--accent)">remote host</strong> over SSH. Runs the full detection suite on the target.';
 }
 
-// Map backend step names → ordered UI step IDs and labels.
 const STEP_ORDER = [
-  { step: 'process_scanner',  id: 'step-proc', label: 'Scanning hidden processes…'       },
-  { step: 'syscall_inspector',id: 'step-sys',  label: 'Scanning kernel hooks & modules…' },
-  { step: 'fs_checker',       id: 'step-fs',   label: 'Scanning filesystem…'             },
-  { step: 'aggregating',      id: 'step-agg',  label: 'Aggregating results…'             },
+  { step:'process_scanner',   id:'step-proc', label:'Scanning hidden processes…'       },
+  { step:'syscall_inspector', id:'step-sys',  label:'Scanning kernel hooks & modules…' },
+  { step:'fs_checker',        id:'step-fs',   label:'Scanning filesystem…'             },
+  { step:'aggregating',       id:'step-agg',  label:'Aggregating results…'             },
 ];
 
-let _lastRenderedStep = null;
-let _elapsedInterval  = null;
-let _scanStart        = null;
+let _lastStep = null, _elapsed = null, _start = null;
 
 function _renderStep(backendStep) {
-  if (backendStep === _lastRenderedStep) return;   // nothing changed
-  _lastRenderedStep = backendStep;
-
-  // Find the index of the currently active step.
+  if (backendStep === _lastStep) return;
+  _lastStep = backendStep;
   let activeIdx = STEP_ORDER.findIndex(s => s.step === backendStep);
-  // 'init' or unknown → nothing active yet; treat as -1
   if (activeIdx === -1 && backendStep !== 'init') activeIdx = STEP_ORDER.length - 1;
-
   STEP_ORDER.forEach((s, i) => {
     const el = document.getElementById(s.id);
     el.style.opacity = '1';
-
     if (i < activeIdx) {
-      // Already done
       el.className = 'done';
-      el.innerHTML = '✔ ' + s.label;
+      el.innerHTML = '<span class="step-icon">✔</span>' + s.label;
     } else if (i === activeIdx) {
-      // Currently running
       el.className = 'active';
-      el.innerHTML = '<span class="spinner"></span> ' + s.label;
-      document.getElementById('progress-text').textContent = s.label;
+      el.innerHTML = '<span class="spinner"></span>' + s.label;
+      document.getElementById('p-label').textContent = s.label;
     } else {
-      // Not yet reached
       el.className = '';
-      el.style.opacity = '0.4';
-      el.innerHTML = s.label;
+      el.style.opacity = '0.35';
+      el.innerHTML = '<span class="step-icon">·</span>' + s.label;
     }
   });
 }
 
-function _startElapsed() {
-  _scanStart = Date.now();
-  _elapsedInterval = setInterval(() => {
-    const secs = Math.round((Date.now() - _scanStart) / 1000);
-    const waiting = document.getElementById('step-waiting');
-    if (waiting) {
-      waiting.innerHTML = '<span class="spinner"></span> Still running — ' + secs + 's elapsed…';
-    }
-  }, 1000);
-}
-
-function _stopElapsed() {
-  if (_elapsedInterval) { clearInterval(_elapsedInterval); _elapsedInterval = null; }
-}
-
 function _showStillRunning() {
-  // Called once all 4 steps are done cosmetically but backend hasn't finished.
   if (document.getElementById('step-waiting')) return;
   const ul = document.getElementById('step-list');
   const li = document.createElement('li');
-  li.id = 'step-waiting';
-  li.className = 'active';
-  li.style.opacity = '1';
+  li.id = 'step-waiting'; li.className = 'active';
   ul.appendChild(li);
+  let secs = 0;
+  _elapsed = setInterval(() => {
+    secs++;
+    li.innerHTML = '<span class="spinner"></span>Still running — ' + secs + 's elapsed…';
+  }, 1000);
 }
 
 function pollScan(scanId) {
   fetch('/scan/' + scanId + '/json')
     .then(r => r.json())
     .then(data => {
-      const step   = data.step   || 'init';
-      const status = data.status || 'running';
-
+      const step = data.step || 'init', status = data.status || 'running';
       _renderStep(step);
-
       if (status === 'running') {
-        // If all 4 steps have lit up but we're still waiting, show the live counter row.
         if (step === 'aggregating') _showStillRunning();
         setTimeout(() => pollScan(scanId), 1500);
       } else {
-        // Scan complete (done or error) — mark everything done and redirect.
-        _stopElapsed();
+        if (_elapsed) clearInterval(_elapsed);
         STEP_ORDER.forEach(s => {
           const el = document.getElementById(s.id);
-          el.className = 'done';
-          el.style.opacity = '1';
-          el.innerHTML = '✔ ' + s.label;
+          el.className = 'done'; el.style.opacity = '1';
+          el.innerHTML = '<span class="step-icon">✔</span>' + s.label;
         });
-        const waiting = document.getElementById('step-waiting');
-        if (waiting) waiting.remove();
-        document.getElementById('progress-text').textContent = '✔ Scan complete — loading results…';
+        const w = document.getElementById('step-waiting');
+        if (w) w.remove();
+        document.getElementById('p-label').textContent = '✔ Scan complete — loading results…';
         setTimeout(() => { window.location.href = '/scan/' + scanId; }, 400);
       }
     })
@@ -260,40 +267,31 @@ function pollScan(scanId) {
 
 document.getElementById('scan-form').addEventListener('submit', function(e) {
   e.preventDefault();
-  const btn = document.querySelector('.btn-scan');
+  const btn = document.getElementById('btn-scan');
   btn.disabled = true;
-  btn.textContent = '⏳ Scanning…';
-
-  document.getElementById('progress').style.display = 'block';
+  btn.innerHTML = '<span class="spinner" style="border-top-color:#060c14"></span> Scanning…';
+  document.getElementById('progress-panel').style.display = 'block';
   _renderStep('init');
-  _startElapsed();
-
-  const payload = { user: 'root', port: 22 };
+  const payload = { user:'root', port:22 };
   if (mode === 'remote') {
     payload.host     = document.getElementById('host').value;
     payload.password = document.getElementById('password').value;
     payload.user     = document.getElementById('user').value;
     payload.port     = parseInt(document.getElementById('port').value);
   }
-
   fetch('/scan', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
     body: JSON.stringify(payload)
   })
   .then(r => r.json())
-  .then(data => {
-    if (data.scan_id) pollScan(data.scan_id);
-  })
+  .then(data => { if (data.scan_id) pollScan(data.scan_id); })
   .catch(err => {
-    _stopElapsed();
     btn.disabled = false;
-    btn.textContent = '🔍 Start Scan';
+    btn.innerHTML = '<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" d="m21 21-4.35-4.35"/></svg> Start Scan';
     alert('Error starting scan: ' + err);
   });
 });
 </script>
-
-
 </body>
 </html>

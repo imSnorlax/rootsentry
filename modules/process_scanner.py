@@ -21,6 +21,7 @@ Detection logic:
 
 import os
 import re
+import time
 import subprocess
 from dataclasses import dataclass
 from typing import List, Optional, Set
@@ -184,23 +185,31 @@ def _local_scan() -> dict:
     psutil_pids = _get_psutil_pids()    # Method B (alt)
     brute_pids  = _brute_force_pids()   # Method C
 
+    # Small delay then re-sample to discard transient spawn/exit processes
+    # that appear hidden only because they died between our two reads.
+    time.sleep(0.15)
+    brute_pids2 = _brute_force_pids()
+    proc_pids2  = _get_proc_pids()
+
+    # Only use PIDs that were hidden in BOTH samples
+    brute_pids  = brute_pids  & brute_pids2
+    proc_pids   = proc_pids   | proc_pids2   # union: if it appeared at all it existed
+
     SKIP = {1, 2}   # PID 1 (init) and 2 (kthreadd) cause noisy false positives
+    _KERNEL_PPIDS = {0, 2}  # Kernel threads have PPid 0 or 2
 
     # --- Category 1: Caraxes-type getdents64 hook ---
-    # Present via stat() but absent from getdents64 listing
     hook_hidden = brute_pids - proc_pids - SKIP
 
     # --- Category 2: Classic ps-hiding rootkit ---
-    # Visible in /proc (getdents64) but hidden from ps/psutil
     ps_hidden = (proc_pids - ps_pids - psutil_pids) - SKIP
 
     findings: List[HiddenProcess] = []
 
     for pid in sorted(hook_hidden):
-        # Confirm it's a real user-space process (not a kernel thread)
         status = _parse_status(pid)
         ppid   = int(status.get("PPid", "0") or "0")
-        if ppid == 2:
+        if ppid in _KERNEL_PPIDS:
             continue    # kernel thread — skip
 
         uid_line  = status.get("Uid", "")
@@ -226,7 +235,7 @@ def _local_scan() -> dict:
             continue    # race condition — PID died
         status  = _parse_status(pid)
         ppid    = int(status.get("PPid", "0") or "0")
-        if ppid == 2:
+        if ppid in _KERNEL_PPIDS:
             continue    # kernel thread
         cmdline = _explain_pid(pid)
         name    = status.get("Name", "?")
