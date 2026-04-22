@@ -24,22 +24,30 @@ import datetime
 import threading
 from typing import Optional
 
-# ── Action log ────────────────────────────────────────────────────────────────
-# Bug #11 fix: protect the global log with a lock so concurrent remediations
-# don't interleave or corrupt each other's entries.
+# ── Per-call action log ───────────────────────────────────────────────────────
+# Each remediate_scan() call creates its OWN local log list and passes it
+# through to every helper.  This eliminates the shared-global bleed bug where
+# concurrent or sequential remediations would read each other's log entries.
 
-_action_log: list[dict] = []
-_log_lock = threading.Lock()
-
-
-def _log(action: str, target: str, success: bool, detail: str = "") -> dict:
-    entry = {
+def _make_entry(action: str, target: str, success: bool, detail: str = "") -> dict:
+    """Build a single structured log entry (no global side-effects)."""
+    return {
         "timestamp": datetime.datetime.utcnow().isoformat(timespec="seconds") + "Z",
         "action":    action,
         "target":    target,
         "success":   success,
         "detail":    detail,
     }
+
+
+# ── Legacy compat shims (kept so any external callers don't break) ─────────────
+_action_log: list[dict] = []
+_log_lock = threading.Lock()
+
+
+def _log(action: str, target: str, success: bool, detail: str = "") -> dict:
+    """Deprecated: appends to the global log.  Internal code uses _make_entry."""
+    entry = _make_entry(action, target, success, detail)
     with _log_lock:
         _action_log.append(entry)
     return entry
@@ -98,21 +106,22 @@ def kill_process(pid: int, ssh=None) -> dict:
     Bug #2 fix: for SSH kills, remove the unconditional '|| true' so we get
     a real exit code, and pass 'ok' through to the log instead of hardcoding
     True.
+    Bug #12 fix: accept int or str pid (JSON deserialisation may give either).
     """
+    pid = int(pid)  # normalise: JSON may deserialise as int already, str from old saves
     if ssh:
         ok, detail = _exec(ssh, f"kill -9 {pid} 2>&1")
-        # A non-existent PID gives exit 1 — treat that as a failed action.
-        return _log("kill_process", str(pid), ok, f"kill -9 {pid}: {detail or 'OK'}")
+        return _make_entry("kill_process", str(pid), ok, f"kill -9 {pid}: {detail or 'OK'}")
     else:
         try:
             os.kill(pid, signal.SIGKILL)
-            return _log("kill_process", str(pid), True, f"SIGKILL → PID {pid}")
+            return _make_entry("kill_process", str(pid), True, f"SIGKILL → PID {pid}")
         except ProcessLookupError:
-            return _log("kill_process", str(pid), False, f"PID {pid} not found")
+            return _make_entry("kill_process", str(pid), False, f"PID {pid} not found")
         except PermissionError:
-            return _log("kill_process", str(pid), False, f"Permission denied (need root)")
+            return _make_entry("kill_process", str(pid), False, f"Permission denied (need root)")
         except Exception as exc:
-            return _log("kill_process", str(pid), False, str(exc))
+            return _make_entry("kill_process", str(pid), False, str(exc))
 
 
 def kill_port_process(port: int, ssh=None) -> dict:
@@ -125,8 +134,8 @@ def kill_port_process(port: int, ssh=None) -> dict:
     """
     cmd = f"fuser -k -n tcp {port} 2>&1; fuser -k -n udp {port} 2>&1; true"
     ok, detail = _run(ssh, cmd)
-    return _log("kill_port_process", str(port),
-                ok, f"fuser -k port {port}: {detail or 'OK'}")
+    return _make_entry("kill_port_process", str(port),
+                       ok, f"fuser -k port {port}: {detail or 'OK'}")
 
 
 def _block_port_iptables(port: int, ssh=None) -> dict:
@@ -149,9 +158,9 @@ def _block_port_iptables(port: int, ssh=None) -> dict:
             all_ok = False
         if d:
             details.append(d)
-    return _log("block_port_iptables", str(port), all_ok,
-                f"iptables DROP rules added for port {port}" +
-                (f" | {'; '.join(details)}" if details else ""))
+    return _make_entry("block_port_iptables", str(port), all_ok,
+                       f"iptables DROP rules added for port {port}" +
+                       (f" | {'; '.join(details)}" if details else ""))
 
 
 # ── Stage 2: Unload kernel modules ───────────────────────────────────────────
@@ -198,7 +207,7 @@ def unload_module(module_name: str, ssh=None) -> dict:
 
     overall_ok = ok or ok2 or ok3
     detail     = " | ".join(results)
-    return _log("unload_module", module_name, overall_ok, detail)
+    return _make_entry("unload_module", module_name, overall_ok, detail)
 
 
 # ── Stage 3: Remove files ─────────────────────────────────────────────────────
@@ -214,7 +223,7 @@ def clean_file(path: str, ssh=None) -> dict:
     quoted = shlex.quote(path)
     cmd    = f"chattr -i {quoted} 2>/dev/null; rm -f -- {quoted} 2>&1"
     ok, detail = _run(ssh, cmd)
-    return _log("clean_file", path, ok, detail or f"Deleted {path}")
+    return _make_entry("clean_file", path, ok, detail or f"Deleted {path}")
 
 
 # ── Stage 4: Persistence cleanup ─────────────────────────────────────────────
@@ -231,8 +240,10 @@ def _clean_persistence(ssh=None, known_rootkits: list[str] | None = None) -> lis
     """
     if known_rootkits is None:
         known_rootkits = [
+            "caraxes",
             "diamorphine", "reptile", "azazel", "beurk",
             "necurs", "suterusu", "adore-ng", "knark", "modhide", "kbeast",
+            "jynx",
         ]
 
     actions = []
@@ -291,6 +302,70 @@ def _clean_persistence(ssh=None, known_rootkits: list[str] | None = None) -> lis
     return actions
 
 
+# ── Stage 5 (new): Proactive blind-unload of all known rootkit modules ────────
+# Some rootkits hide themselves from /proc/modules (e.g. Caraxes can hide its
+# own module entry). The detection-based unload in Stage 3 won't fire if the
+# scanner never saw the module. This stage blindly tries rmmod on every known
+# rootkit name — a failed rmmod on a non-loaded module is harmless and fast.
+
+def _force_unload_all_known(ssh=None,
+                             known_rootkits: list[str] | None = None) -> list[dict]:
+    """
+    Attempt rmmod on every known rootkit name unconditionally.
+    Catches rootkits that hide from /proc/modules and therefore evade
+    the detection-based unload path.
+    """
+    if known_rootkits is None:
+        from config import KNOWN_ROOTKITS
+        known_rootkits = KNOWN_ROOTKITS
+
+    actions = []
+    for name in known_rootkits:
+        ok, out = _run(ssh, f"rmmod {shlex.quote(name)} 2>&1")
+        if ok:
+            # Module was actually loaded and now removed — log it
+            actions.append(_make_entry("force_unload", name, True,
+                                       "Blind rmmod succeeded — module was hidden from scanner"))
+            # Also strip from persistence
+            safe = re.escape(name)
+            _run(ssh, (
+                f"sed -i '\\|{safe}|d' /etc/modules 2>/dev/null; "
+                f"rm -f /etc/modules-load.d/{shlex.quote(name + '.conf')} 2>/dev/null; true"
+            ))
+        # Intentionally don't log failures — most names won't be loaded
+    return actions
+
+
+# ── Stage 6 (new): Hunt and delete rootkit .ko files from disk ────────────────
+
+def _delete_ko_files(ssh=None,
+                     known_rootkits: list[str] | None = None) -> list[dict]:
+    """
+    Find and remove rootkit kernel object (.ko) files so the rootkit can't
+    be re-inserted after a reboot or by a persistence script.
+    Searches /lib/modules, /tmp, /dev/shm, /var/tmp, /opt, /home, /root.
+    """
+    if known_rootkits is None:
+        from config import KNOWN_ROOTKITS
+        known_rootkits = KNOWN_ROOTKITS
+
+    actions = []
+    name_pattern = "|".join(re.escape(n) for n in known_rootkits)
+    # find .ko files whose filename matches any known rootkit name
+    cmd = (
+        f"find /lib/modules /tmp /dev/shm /var/tmp /opt /home /root "
+        f"-name '*.ko' -type f 2>/dev/null | "
+        f"grep -Ei '{name_pattern}'"
+    )
+    ok, out = _run(ssh, cmd)
+    if out:
+        for path in out.strip().splitlines():
+            path = path.strip()
+            if path:
+                actions.append(clean_file(path, ssh))
+    return actions
+
+
 # ── Main batch remediation ────────────────────────────────────────────────────
 
 def remediate_scan(scan_result: dict, ssh_client=None,
@@ -302,39 +377,57 @@ def remediate_scan(scan_result: dict, ssh_client=None,
     """
     Fully aggressive remediation of all findings from a scan result.
 
+    Bug fix: every action entry is now built with _make_entry() and collected
+    in a LOCAL list — no shared global state, safe for concurrent calls.
+
     Execution order:
+      0. Proactively try rmmod on ALL known rootkits, even if not detected
+         (catches rootkits that hide from /proc/modules like Caraxes)
       1. Kill hidden processes (SIGKILL by PID)
       2. Kill + block hidden ports (fuser + iptables)
-      3. Unload rootkit kernel modules (rmmod / force)
-      4. Delete suspicious files  
+      3. Unload rootkit kernel modules identified by scanner (rmmod / force)
+      4. Delete suspicious files
       5. Destroy persistence (cron, systemd, rc.local, ld.so.preload, droppers)
+      6. Hunt and delete rootkit .ko files from disk
     """
     actions: list[dict] = []
     ssh = ssh_client
-    modules = scan_result.get("modules", {})
+    mods = scan_result.get("modules", {})
+
+    # ── 0. Proactive blind-unload (catches hidden/self-hiding modules) ─────
+    actions.extend(_force_unload_all_known(ssh))
 
     # ── 1. Kill hidden processes ───────────────────────────────────────────
     if kill_procs:
-        proc_mod = modules.get("process_scanner", {})
+        proc_mod = mods.get("process_scanner", {})
         for finding in proc_mod.get("findings", []):
             pid = finding.get("pid")
-            if pid:
-                actions.append(kill_process(int(pid), ssh))
+            # pid can be int (new schema) or str (old saves) — int() handles both
+            if pid is not None:
+                try:
+                    actions.append(kill_process(int(pid), ssh))
+                except (ValueError, TypeError):
+                    pass
 
     # ── 2. Kill + block hidden ports ──────────────────────────────────────
-    fs_mod = modules.get("fs_checker", {})
+    # Hidden ports can come from fs_checker (both local and remote scans)
+    fs_mod = mods.get("fs_checker", {})
     for finding in fs_mod.get("findings", []):
         if finding.get("type") == "hidden_port":
             port = finding.get("port")
-            if port:
-                if kill_procs:
-                    actions.append(kill_port_process(int(port), ssh))
-                if block_ports:
-                    actions.append(_block_port_iptables(int(port), ssh))
+            if port is not None:
+                try:
+                    port = int(port)
+                    if kill_procs:
+                        actions.append(kill_port_process(port, ssh))
+                    if block_ports:
+                        actions.append(_block_port_iptables(port, ssh))
+                except (ValueError, TypeError):
+                    pass
 
     # ── 3. Unload rootkit modules ──────────────────────────────────────────
     if unload_mods:
-        sys_mod = modules.get("syscall_inspector", {})
+        sys_mod = mods.get("syscall_inspector", {})
         for finding in sys_mod.get("findings", []):
             if finding.get("type") == "rootkit_module":
                 mod_name = finding.get("module")
@@ -343,16 +436,23 @@ def remediate_scan(scan_result: dict, ssh_client=None,
 
     # ── 4. Delete suspicious files ────────────────────────────────────────
     if clean_files:
+        _DELETABLE_TYPES = {
+            "suspicious_suid", "world_writable",
+            "suspicious_file", "rootkit_path",
+        }
         for finding in fs_mod.get("findings", []):
             ftype = finding.get("type", "")
             path  = finding.get("path")
-            if path and ftype in ("suspicious_suid", "world_writable",
-                                  "suspicious_file", "rootkit_path"):
+            if path and ftype in _DELETABLE_TYPES:
                 actions.append(clean_file(path, ssh))
 
     # ── 5. Clean persistence ──────────────────────────────────────────────
     if clean_persistence:
         actions.extend(_clean_persistence(ssh))
+
+    # ── 6. Delete rootkit .ko files from disk ─────────────────────────────
+    if clean_files:
+        actions.extend(_delete_ko_files(ssh))
 
     succeeded = sum(1 for a in actions if a["success"])
     failed    = len(actions) - succeeded

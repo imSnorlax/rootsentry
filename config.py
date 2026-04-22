@@ -12,20 +12,26 @@ RISK_INFECTED   = 3              # 3+ threats
 
 # ── Known rootkit signatures ─────────────────────────────────────────────────
 KNOWN_ROOTKITS = [
+    # ftrace-based LKM rootkits
+    "caraxes",
+    # syscall-table LKM rootkits
     "diamorphine",
     "reptile",
-    "azazel",
-    "beurk",
-    "necurs",
     "suterusu",
     "adore-ng",
     "knark",
     "modhide",
     "kbeast",
+    # LD_PRELOAD userland rootkits
+    "azazel",
+    "beurk",
+    "necurs",
+    "jynx",
 ]
 
 # ── Suspicious kallsyms symbols ──────────────────────────────────────────────
 SUSPICIOUS_KALLSYMS = [
+    # Classic syscall-table hooks
     "sys_call_table",
     "ia32_sys_call_table",
     "do_fork",
@@ -33,6 +39,11 @@ SUSPICIOUS_KALLSYMS = [
     "packet_rcv",
     "tpacket_rcv",
     "audit_log_exit",
+    # ftrace-based hooks (Caraxes-type)
+    "getdents64",
+    "getdents",
+    "filldir",
+    "filldir64",
 ]
 
 # ── Paths ────────────────────────────────────────────────────────────────────
