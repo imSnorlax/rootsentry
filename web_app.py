@@ -258,6 +258,12 @@ def remediate(scan_id: str):
 
             rem = remediate_scan(result, ssh_client=ssh_client)
             result["remediation"] = rem
+            # Mark the scan as remediated so future page loads don't still
+            # show the original risk level (e.g. "infected").
+            result["risk_level"] = "remediated"
+            result["remediation_note"] = (
+                "Risk level updated after remediation — re-scan to confirm clean."
+            )
             _save_scan(scan_id, result)
             log.info("Remediation for scan %s: %s", scan_id, rem["summary"])
             with _rem_lock:

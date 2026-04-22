@@ -43,7 +43,9 @@
     .risk-badge.infected{color:var(--danger);border-color:var(--danger);background:#ef444415}
     .risk-badge.suspicious{color:var(--warn);border-color:var(--warn);background:#f59e0b15}
     .risk-badge.clean{color:var(--clean);border-color:var(--clean);background:#22c55e15}
+    .risk-badge.remediated{color:#a78bfa;border-color:#a78bfa;background:#a78bfa15}
     .risk-badge.unknown,.risk-badge.error{color:var(--muted);border-color:var(--muted);background:#94a3b815}
+    .rescan-hint{margin-top:10px;font-size:.78rem;color:#a78bfa;opacity:.8}
     /* meta pills */
     .meta-row{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:28px}
     .meta-pill{
@@ -162,6 +164,9 @@
     <div class="risk-block">
       <h1>Scan Report</h1>
       <p>{{ host }} &nbsp;·&nbsp; {{ scan.get('timestamp','—') }}</p>
+      {% if risk == 'remediated' %}
+      <p class="rescan-hint">⚠ Re-scan to confirm the system is clean.</p>
+      {% endif %}
     </div>
     <div class="risk-badge {{ risk }}">{{ risk }}</div>
   </div>
@@ -388,6 +393,32 @@ function _pollRemediation() {
 }
 
 function _renderRemResult(data) {
+  // ── Update the risk badge live ────────────────────────────────────────────
+  const badge = document.querySelector('.risk-badge');
+  if (badge) {
+    badge.className = 'risk-badge remediated';
+    badge.textContent = 'remediated';
+  }
+
+  // ── Swap the remediate button ─────────────────────────────────────────────
+  const btn = document.getElementById('btn-remediate');
+  if (btn) {
+    btn.className = 'btn btn-success';
+    btn.disabled = true;
+    btn.style.pointerEvents = 'none';
+    btn.textContent = '✔ Remediated';
+  }
+
+  // ── Add re-scan hint under the badge ─────────────────────────────────────
+  const riskBlock = document.querySelector('.risk-block');
+  if (riskBlock && !riskBlock.querySelector('.rescan-hint')) {
+    const hint = document.createElement('p');
+    hint.className = 'rescan-hint';
+    hint.textContent = '⚠ Re-scan to confirm the system is clean.';
+    riskBlock.appendChild(hint);
+  }
+
+  // ── Render action list ────────────────────────────────────────────────────
   const div = document.getElementById('remediation-result');
   div.style.display = 'block';
   let html = '<div class="rem-card"><h3>🛠 ' + (data.summary || '') + '</h3>';

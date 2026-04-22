@@ -49,3 +49,15 @@
 2026-03-30 11:57:31,430 [INFO] 127.0.0.1 - - [30/Mar/2026 11:57:31] "GET /scan/7688365a HTTP/1.1" 200 -
 2026-03-30 11:57:40,324 [INFO] 127.0.0.1 - - [30/Mar/2026 11:57:40] "GET /report/7688365a HTTP/1.1" 200 -
 2026-03-30 12:00:53,004 [INFO]  * Detected change in 'C:\\Users\\lbert\\Downloads\\rootsentry\\web_app.py', reloading
+2026-04-22 20:06:36,068 [INFO] [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.11.106:5000
+2026-04-22 20:06:36,070 [INFO] [33mPress CTRL+C to quit[0m
+2026-04-22 20:06:36,090 [INFO]  * Restarting with stat
+2026-04-22 20:06:36,883 [WARNING]  * Debugger is active!
+2026-04-22 20:06:36,891 [INFO]  * Debugger PIN: 127-678-335
+2026-04-22 20:21:21,759 [INFO]  * Detected change in 'C:\\Users\\lbert\\Downloads\\rootsentry\\web_app.py', reloading
+2026-04-22 20:21:21,842 [INFO]  * Restarting with stat
+2026-04-22 20:21:22,218 [WARNING]  * Debugger is active!
+2026-04-22 20:21:22,224 [INFO]  * Debugger PIN: 127-678-335
