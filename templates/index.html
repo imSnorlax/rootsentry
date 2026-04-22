@@ -106,9 +106,34 @@
     .tc::before{content:'';display:block;height:2px;background:linear-gradient(90deg,var(--accent),transparent)}
 
     @media(max-width:1050px){.stats{grid-template-columns:repeat(2,1fr)}}
+
+    /* ── ANIMATIONS ── */
+    #mc{position:fixed;top:0;left:0;width:100%;height:100%;z-index:0;pointer-events:none;opacity:.18}
+    .sb,.main{position:relative;z-index:1}
+    @keyframes fadeUp{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:translateY(0)}}
+    @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+    .sc{opacity:0;animation:fadeUp .55s ease both}
+    .sc:nth-child(1){animation-delay:.08s}.sc:nth-child(2){animation-delay:.18s}
+    .sc:nth-child(3){animation-delay:.28s}.sc:nth-child(4){animation-delay:.38s}
+    .tc{opacity:0;animation:fadeUp .55s .45s ease both}
+    .sec-hdr{opacity:0;animation:fadeIn .4s .35s ease both}
+    /* Glow on stat vals */
+    .sc.green .sc-val{text-shadow:0 0 20px rgba(0,255,136,.4)}
+    .sc.red .sc-val{text-shadow:0 0 20px rgba(255,79,79,.4)}
+    /* Risk badge pulse */
+    .rb.infected{animation:danger-pulse 2.2s ease-in-out infinite}
+    .rb.clean{animation:clean-pulse 2.5s ease-in-out infinite}
+    @keyframes danger-pulse{0%,100%{box-shadow:0 0 0 0 rgba(255,79,79,.5)}50%{box-shadow:0 0 12px 4px rgba(255,79,79,.15)}}
+    @keyframes clean-pulse{0%,100%{box-shadow:0 0 0 0 rgba(0,255,136,.4)}50%{box-shadow:0 0 12px 4px rgba(0,255,136,.12)}}
+    /* Table row hover glow */
+    .tc tr:hover td{background:rgba(0,255,136,.04) !important;transition:background .15s}
+    /* Sidebar item animated indicator */
+    .sb-item.active::before{animation:glow-bar 2s ease-in-out infinite alternate}
+    @keyframes glow-bar{from{box-shadow:0 0 4px var(--accent)}to{box-shadow:0 0 14px var(--accent),0 0 28px rgba(0,255,136,.3)}}
   </style>
 </head>
 <body>
+<canvas id="mc"></canvas>
 
 <aside class="sb">
   <div class="sb-logo">
@@ -252,5 +277,62 @@
   </div>
 </div>
 
+<script>
+/* ── Matrix rain ── */
+(function(){
+  const c=document.getElementById('mc'),x=c.getContext('2d');
+  function resize(){c.width=window.innerWidth;c.height=window.innerHeight;}
+  resize(); window.addEventListener('resize',resize);
+  const cols=()=>Math.floor(c.width/18);
+  let drops=Array(cols()).fill(1);
+  window.addEventListener('resize',()=>{drops=Array(cols()).fill(1);});
+  const chars='ABCDEFアイウエオカキクケコサシスセソ01アβΩΨΦ\/|<>{}[]01';
+  setInterval(()=>{
+    x.fillStyle='rgba(6,12,20,0.055)';x.fillRect(0,0,c.width,c.height);
+    x.font='13px JetBrains Mono,monospace';
+    drops.forEach((y,i)=>{
+      const ch=chars[Math.floor(Math.random()*chars.length)];
+      const bright=Math.random()>.92;
+      x.fillStyle=bright?'rgba(0,255,136,0.9)':'rgba(0,255,136,0.28)';
+      x.fillText(ch,i*18,y*18);
+      if(y*18>c.height&&Math.random()>.975)drops[i]=0;
+      drops[i]++;
+    });
+  },55);
+})();
+
+/* ── Animated counters ── */
+function animCount(el,target,duration){
+  if(isNaN(target)||target===0){return;}
+  const start=performance.now();
+  (function tick(now){
+    const p=Math.min((now-start)/duration,1);
+    const ease=1-Math.pow(1-p,3);
+    el.textContent=Math.round(ease*target);
+    if(p<1)requestAnimationFrame(tick);
+  })(start);
+}
+document.querySelectorAll('.sc-val').forEach(el=>{
+  const n=parseInt(el.textContent.trim());
+  if(!isNaN(n)&&n>0){ el.dataset.target=n; el.textContent='0'; }
+});
+const io=new IntersectionObserver(entries=>{
+  entries.forEach(e=>{
+    if(e.isIntersecting){
+      const el=e.target.querySelector('.sc-val');
+      if(el&&el.dataset.target){ animCount(el,parseInt(el.dataset.target),1000); io.unobserve(e.target); }
+    }
+  });
+},{threshold:.3});
+document.querySelectorAll('.sc').forEach(sc=>io.observe(sc));
+
+/* ── Table rows stagger in ── */
+document.querySelectorAll('.tc tbody tr').forEach((tr,i)=>{
+  tr.style.opacity='0';
+  tr.style.transform='translateY(10px)';
+  tr.style.transition='opacity .35s ease, transform .35s ease';
+  setTimeout(()=>{ tr.style.opacity='1'; tr.style.transform='none'; }, 550+i*60);
+});
+</script>
 </body>
 </html>

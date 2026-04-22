@@ -95,12 +95,33 @@
     .empty-term{padding:60px;text-align:center;color:var(--dim)}
     .empty-term svg{display:block;margin:0 auto 14px;opacity:.2}
 
+    /* ── ANIMATIONS ── */
+    #mc{position:fixed;top:0;left:0;width:100%;height:100%;z-index:0;pointer-events:none;opacity:.12}
+    .sb,.main{position:relative;z-index:1}
+    @keyframes glow-bar{from{box-shadow:0 0 4px var(--accent)}to{box-shadow:0 0 14px var(--accent),0 0 28px rgba(0,255,136,.3)}}
+    .sb-item.active::before{animation:glow-bar 2s ease-in-out infinite alternate}
+    @keyframes fadeUp{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
+    .toolbar{opacity:0;animation:fadeUp .4s .05s ease both}
+    .filter-tabs{opacity:0;animation:fadeUp .4s .12s ease both}
+    .terminal{opacity:0;animation:fadeUp .5s .2s ease both}
+    /* Scanline TV effect over terminal */
+    .terminal{position:relative}
+    .terminal::after{content:'';position:absolute;inset:0;background:repeating-linear-gradient(0deg,rgba(0,0,0,0) 0px,rgba(0,0,0,0) 3px,rgba(0,255,136,.012) 3px,rgba(0,255,136,.012) 4px);pointer-events:none;border-radius:14px;z-index:10}
+    /* Error lines subtle flash */
+    .ll.line-err{animation:err-flash 4s ease-in-out infinite}
+    @keyframes err-flash{0%,91%,100%{background:transparent}93%,98%{background:rgba(255,79,79,.04)}}
+    /* Log msg hover highlight */
+    .ll:hover .ll-msg{color:var(--text2)}
+    .ll.line-err:hover .ll-msg{color:#e07070}
+    .ll.line-warn:hover .ll-msg{color:var(--warn)}
+
     /* Auto-refresh indicator */
     .refresh-bar{height:2px;background:var(--accent);position:fixed;bottom:0;left:var(--sw);right:0;transform-origin:left;animation:countdown 10s linear infinite}
     @keyframes countdown{from{transform:scaleX(1)}to{transform:scaleX(0)}}
   </style>
 </head>
 <body>
+<canvas id="mc"></canvas>
 
 <aside class="sb">
   <div class="sb-logo">
@@ -225,6 +246,26 @@ function setLevel(lvl, btn) {
 
 // Auto-refresh every 10s
 setTimeout(() => window.location.reload(), 10000);
+
+// Matrix rain
+(function(){
+  const c=document.getElementById('mc'),x=c.getContext('2d');
+  function r(){c.width=window.innerWidth;c.height=window.innerHeight;}
+  r();window.addEventListener('resize',r);
+  let d=Array(Math.floor(c.width/16)).fill(1);
+  window.addEventListener('resize',()=>{d=Array(Math.floor(c.width/16)).fill(1);});
+  const s='0123456789ABCDEFアイウエオ\/|{}[]<>';
+  setInterval(()=>{
+    x.fillStyle='rgba(3,8,16,0.065)';x.fillRect(0,0,c.width,c.height);
+    x.font='11px JetBrains Mono,monospace';
+    d.forEach((y,i)=>{
+      x.fillStyle=Math.random()>.94?'rgba(0,255,136,.9)':'rgba(0,255,136,.18)';
+      x.fillText(s[Math.floor(Math.random()*s.length)],i*16,y*16);
+      if(y*16>c.height&&Math.random()>.975)d[i]=0;
+      d[i]++;
+    });
+  },60);
+})();
 </script>
 </body>
 </html>

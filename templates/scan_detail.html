@@ -143,9 +143,38 @@
     .sec-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
     .sec-title{font-size:.75rem;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.1em;display:flex;align-items:center;gap:8px}
     .sec-title::before{content:'';width:3px;height:13px;background:var(--accent);border-radius:2px;display:inline-block}
+
+    /* ── ANIMATIONS ── */
+    #mc{position:fixed;top:0;left:0;width:100%;height:100%;z-index:0;pointer-events:none;opacity:.13}
+    .sb,.main{position:relative;z-index:1}
+    @keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+    @keyframes slideRight{from{opacity:0;transform:translateX(-24px)}to{opacity:1;transform:translateX(0)}}
+    @keyframes glow-bar{from{box-shadow:0 0 4px var(--accent)}to{box-shadow:0 0 14px var(--accent),0 0 28px rgba(0,255,136,.3)}}
+    .sb-item.active::before{animation:glow-bar 2s ease-in-out infinite alternate}
+    .scan-hero{opacity:0;animation:fadeUp .5s .05s ease both}
+    .meta-row{opacity:0;animation:fadeUp .4s .2s ease both}
+    .action-bar{opacity:0;animation:fadeUp .4s .28s ease both}
+    .module-card{opacity:0;animation:fadeUp .5s ease both}
+    /* Risk badge glow animations */
+    .risk-badge.infected{animation:badge-danger 2s ease-in-out infinite}
+    .risk-badge.clean{animation:badge-clean 2.5s ease-in-out infinite}
+    .risk-badge.suspicious{animation:badge-warn 2.2s ease-in-out infinite}
+    .risk-badge.remediated{animation:badge-purple 2.8s ease-in-out infinite}
+    @keyframes badge-danger{0%,100%{box-shadow:0 0 14px rgba(255,79,79,.4),0 0 0 0 rgba(255,79,79,.3)}50%{box-shadow:0 0 28px rgba(255,79,79,.7),0 0 0 8px rgba(255,79,79,0)}}
+    @keyframes badge-clean{0%,100%{box-shadow:0 0 14px rgba(0,255,136,.4),0 0 0 0 rgba(0,255,136,.3)}50%{box-shadow:0 0 28px rgba(0,255,136,.7),0 0 0 8px rgba(0,255,136,0)}}
+    @keyframes badge-warn{0%,100%{box-shadow:0 0 14px rgba(255,179,71,.4),0 0 0 0 rgba(255,179,71,.3)}50%{box-shadow:0 0 28px rgba(255,179,71,.6),0 0 0 8px rgba(255,179,71,0)}}
+    @keyframes badge-purple{0%,100%{box-shadow:0 0 14px rgba(179,136,255,.4)}50%{box-shadow:0 0 28px rgba(179,136,255,.6)}}
+    /* Threat chip count glow */
+    .threat-chip.high{animation:chip-pulse 1.8s ease-in-out infinite}
+    @keyframes chip-pulse{0%,100%{box-shadow:none}50%{box-shadow:0 0 10px rgba(255,79,79,.35)}}
+    /* Scan hero neon border glow */
+    .scan-hero.infected{animation:hero-danger 3s ease-in-out infinite}
+    .scan-hero.clean{border-color:rgba(0,255,136,.22);box-shadow:0 0 40px rgba(0,255,136,.06)}
+    @keyframes hero-danger{0%,100%{border-color:rgba(255,79,79,.2);box-shadow:0 0 30px rgba(255,79,79,.05)}50%{border-color:rgba(255,79,79,.4);box-shadow:0 0 50px rgba(255,79,79,.12)}}
   </style>
 </head>
 <body>
+<canvas id="mc"></canvas>
 
 <aside class="sb">
   <div class="sb-logo">
@@ -437,6 +466,43 @@ function _renderRemResult(data) {
   html += '</div>';
   div.innerHTML = html;
 }
+</script>
+<script>
+/* ── Matrix rain ── */
+(function(){
+  const c=document.getElementById('mc'),x=c.getContext('2d');
+  function resize(){c.width=window.innerWidth;c.height=window.innerHeight;}
+  resize();window.addEventListener('resize',resize);
+  let drops=Array(Math.floor(c.width/18)).fill(1);
+  window.addEventListener('resize',()=>{drops=Array(Math.floor(c.width/18)).fill(1);});
+  const ch='ABCDEFアイウエオ01βΩ∾≤≥\/|{}[]<>';
+  setInterval(()=>{
+    x.fillStyle='rgba(6,12,20,0.06)';x.fillRect(0,0,c.width,c.height);
+    x.font='12px JetBrains Mono,monospace';
+    drops.forEach((y,i)=>{
+      x.fillStyle=Math.random()>.93?'rgba(0,255,136,.95)':'rgba(0,255,136,.22)';
+      x.fillText(ch[Math.floor(Math.random()*ch.length)],i*18,y*18);
+      if(y*18>c.height&&Math.random()>.975)drops[i]=0;
+      drops[i]++;
+    });
+  },55);
+})();
+
+/* ── Module cards stagger in ── */
+document.querySelectorAll('.module-card').forEach((el,i)=>{
+  el.style.animationDelay=(0.4+i*0.1)+'s';
+});
+
+/* ── Threat counts animate ── */
+function animCount(el,target,dur){
+  if(!target||target===0)return;
+  const s=performance.now();
+  (function t(now){const p=Math.min((now-s)/dur,1);el.textContent=Math.round((1-Math.pow(1-p,3))*target);if(p<1)requestAnimationFrame(t);})(s);
+}
+document.querySelectorAll('.threat-chip').forEach(el=>{
+  const n=parseInt(el.textContent);
+  if(n>0){el.dataset.t=n;el.textContent='0';setTimeout(()=>animCount(el,n,700),600);}
+});
 </script>
 </body>
 </html>
