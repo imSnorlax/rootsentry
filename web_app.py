@@ -288,7 +288,11 @@ def remediate_status(scan_id: str):
         saved = _load_scan(scan_id)
         if saved and saved.get("remediation"):
             return jsonify({"status": "done", "result": saved["remediation"]})
-        abort(404)
+        # Return JSON 404 so the browser's r.json() never chokes on an HTML
+        # error page (which would produce a misleading SyntaxError instead of
+        # showing the real problem).
+        return jsonify({"status": "not_found",
+                        "error": f"No remediation job found for scan {scan_id}"}), 404
 
     return jsonify({"status": info["status"], "result": info["result"]})
 

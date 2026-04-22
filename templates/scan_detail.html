@@ -337,28 +337,53 @@ function doRemediate(creds) {
   });
 }
 
+let _pollFailures = 0;
+const _POLL_MAX_RETRIES = 6;
+
 function _pollRemediation() {
   const btn = document.getElementById('btn-remediate');
   fetch('/remediate/{{ scan_id }}/status')
-    .then(r => r.json())
-    .then(data => {
+    .then(r => {
+      // Always parse as JSON — the route now returns JSON even for 404.
+      return r.json().then(data => ({ ok: r.ok, status: r.status, data }));
+    })
+    .then(({ ok, status, data }) => {
+      _pollFailures = 0; // reset retry counter on any successful response
+
       if (data.status === 'running') {
         setTimeout(_pollRemediation, 1500);
         return;
       }
+
+      // Server restarted and lost in-memory state but no saved result yet —
+      // keep polling; the thread may still be running in the reloaded process.
+      if (data.status === 'not_found') {
+        setTimeout(_pollRemediation, 2000);
+        return;
+      }
+
       // done or error
       const result = data.result || {};
       if (result.error) {
-        alert('Remediation failed: ' + result.error);
         if (btn) { btn.disabled = false; btn.textContent = '🛠 Remediate All'; }
+        alert('Remediation failed: ' + result.error);
         return;
       }
       if (btn) btn.textContent = '✔ Done';
       _renderRemResult(result);
     })
     .catch(e => {
-      if (btn) { btn.disabled = false; btn.textContent = '🛠 Remediate All'; }
-      alert('Polling error: ' + e);
+      // "Failed to fetch" = server briefly unreachable (e.g. Werkzeug auto-reload).
+      // Retry with backoff up to _POLL_MAX_RETRIES times before giving up.
+      _pollFailures++;
+      if (_pollFailures <= _POLL_MAX_RETRIES) {
+        const delay = Math.min(1500 * _pollFailures, 8000);
+        console.warn(`Poll attempt ${_pollFailures}/${_POLL_MAX_RETRIES} failed (${e}), retrying in ${delay}ms…`);
+        setTimeout(_pollRemediation, delay);
+      } else {
+        if (btn) { btn.disabled = false; btn.textContent = '🛠 Remediate All'; }
+        alert(`Remediation polling failed after ${_POLL_MAX_RETRIES} retries.\n\nThe server may have restarted. Check the Flask console for errors, then refresh this page — if remediation completed it will show automatically.`);
+      }
     });
 }
 
