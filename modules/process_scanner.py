@@ -264,109 +264,139 @@ def _remote_scan(ssh) -> dict:
     """
     Three-method remote scan over SSH.
 
-    Method A: ls /proc | grep '^[0-9]'  — getdents64, may be filtered
-    Method B: ps -e -o pid=             — also filtered
-    Method C: shell loop using [ -d /proc/<n> ]  — stat(), NOT getdents64
-              Parallelised with xargs for speed.
+    Method A: ls /proc | grep '^[0-9]'  — getdents64, may be filtered by rootkit
+    Method B: ps -e -o pid=             — also filtered by some rootkits
+    Method C: [ -d /proc/N ] in seq loop — stat(), NOT getdents64 (hook-resistant)
+
+    Per-PID status/cmdline reads are BATCHED into single commands to avoid
+    hitting SSH MaxSessions limits.
     """
 
-    def _exec(cmd: str) -> str:
-        _, stdout, _ = ssh.exec_command(cmd, timeout=60)
-        return stdout.read().decode(errors="replace")
+    def _exec(cmd: str, timeout: int = 60) -> str:
+        try:
+            _, stdout, _ = ssh.exec_command(cmd, timeout=timeout)
+            return stdout.read().decode(errors="replace")
+        except Exception as exc:
+            return ""
 
-    # ── Method A (getdents64) ─────────────────────────────────────────────────
+    # ── Method A (getdents64 — rootkit may filter this) ──────────────────────
     raw_a     = _exec("ls /proc 2>/dev/null | grep -E '^[0-9]+$'")
     proc_pids = set(int(p) for p in raw_a.split() if p.isdigit())
 
-    # ── Method B (ps) ────────────────────────────────────────────────────────
+    # ── Method B (ps — also filterable) ──────────────────────────────────────
     raw_b   = _exec("ps -e -o pid= 2>/dev/null")
     ps_pids = set(int(p.strip()) for p in raw_b.split() if p.strip().isdigit())
 
-    # ── Method C (stat brute-force) ───────────────────────────────────────────
-    # [ -d /proc/N ] calls stat() — NOT getdents64 — so Caraxes can't filter it.
-    #
-    # PERFORMANCE NOTE: we use a single bash for-loop (one shell process) rather
-    # than xargs -P8 -I{} sh -c '...' which would fork a NEW shell per PID
-    # (up to 32768 forks — catastrophically slow over SSH).
-    # A tight bash loop with built-in [ ] is ~2-5s for 32768 iterations.
-    pid_max_raw = _exec("cat /proc/sys/kernel/pid_max 2>/dev/null").strip()
-    try:
-        pid_max = int(pid_max_raw)
-    except Exception:
-        pid_max = 32768
-    # Cap at 65535 — scanning millions of PIDs over SSH is unreasonable
-    pid_max = min(pid_max, 65535)
-
+    # ── Method C (stat brute-force — hook-resistant) ─────────────────────────
+    # Uses [ -d /proc/N ] which calls stat(), NOT getdents64.
+    # Capped at 32768 (Ubuntu default pid_max) with a 50s timeout.
     brute_cmd = (
-        f"for i in $(seq 1 {pid_max}); "
-        f"do [ -d /proc/$i ] && echo $i; "
-        f"done 2>/dev/null"
+        "for i in $(seq 1 32768); "
+        "do [ -d /proc/$i ] && echo $i; "
+        "done 2>/dev/null"
     )
-    raw_c      = _exec(brute_cmd)
+    raw_c      = _exec(brute_cmd, timeout=50)
     brute_pids = set(int(p) for p in raw_c.split() if p.isdigit())
-
 
     SKIP = {1, 2}
     hook_hidden = brute_pids - proc_pids - SKIP
-    ps_hidden   = (proc_pids - ps_pids)  - SKIP
+    ps_hidden   = (proc_pids - ps_pids) - SKIP
 
     findings: List[HiddenProcess] = []
 
-    # --- Caraxes-type: visible via stat() but not getdents64 -----------------
-    for pid in sorted(hook_hidden):
-        status_raw = _exec(f"cat /proc/{pid}/status 2>/dev/null")
-        ppid, name, uid = 0, "?", "?"
-        for line in status_raw.splitlines():
-            if line.startswith("PPid:"):
-                try: ppid = int(line.split()[1])
-                except Exception: pass
-            if line.startswith("Name:"):
-                name = line.split(None, 1)[1].strip() if len(line.split()) > 1 else "?"
-            if line.startswith("Uid:"):
-                uid = line.split()[1] if len(line.split()) > 1 else "?"
-        if ppid == 2:
-            continue    # kernel thread
-        cmdline_raw = _exec(f"cat /proc/{pid}/cmdline 2>/dev/null | tr '\\0' ' '")
-        cmdline = cmdline_raw.strip() or name or "(unknown)"
-        findings.append(HiddenProcess(
-            pid=pid,
-            cmdline=cmdline,
-            status=f"Name={name} PPid={ppid} UID={uid}",
-            reason=(
-                f"INVISIBLE to getdents64 but EXISTS via stat() — "
-                f"ftrace/getdents64 hook detected (Caraxes-type rootkit). "
-                f"UID={uid}"
-            ),
-            detection_method="stat_brute_force",
-        ))
+    # PERF FIX: batch all status reads for hook_hidden into ONE ssh call
+    if hook_hidden:
+        pids_str = " ".join(str(p) for p in sorted(hook_hidden))
+        batch_status = _exec(
+            f"for pid in {pids_str}; do "
+            f"echo ===PID=$pid; "
+            f"cat /proc/$pid/status 2>/dev/null; "
+            f"echo ---CMD; "
+            f"cat /proc/$pid/cmdline 2>/dev/null | tr '\\0' ' '; "
+            f"echo; "
+            f"done"
+        )
+        _parse_batch(batch_status, hook_hidden, findings,
+                     reason_tmpl="INVISIBLE to getdents64 but EXISTS via stat() — "
+                                 "ftrace/getdents64 hook detected (Caraxes-type rootkit). UID={uid}",
+                     method="stat_brute_force")
 
-    # --- Classic: visible in /proc but hidden from ps ------------------------
-    for pid in sorted(ps_hidden):
-        if pid in hook_hidden:
-            continue
-        verify = _exec(f"test -d /proc/{pid} && echo yes || echo no").strip()
-        if verify != "yes":
-            continue
-        status_raw = _exec(f"cat /proc/{pid}/status 2>/dev/null")
-        ppid, name = 0, "?"
-        for line in status_raw.splitlines():
-            if line.startswith("PPid:"):
-                try: ppid = int(line.split()[1])
-                except Exception: pass
-            if line.startswith("Name:"):
-                name = line.split(None, 1)[1].strip() if len(line.split()) > 1 else "?"
-        if ppid == 2:
-            continue
-        cmdline_raw = _exec(f"cat /proc/{pid}/cmdline 2>/dev/null | tr '\\0' ' '")
-        cmdline = cmdline_raw.strip() or name or "(unknown)"
-        findings.append(HiddenProcess(
-            pid=pid,
-            cmdline=cmdline,
-            reason=f"Hidden from ps (remote) | name={name} ppid={ppid}",
-            detection_method="proc_vs_ps",
-        ))
+    # PERF FIX: batch all status reads for ps_hidden into ONE ssh call
+    remaining_ps = ps_hidden - {f.pid for f in findings if hasattr(f, 'pid')}
+    remaining_ps = {p for p in remaining_ps if p not in hook_hidden}
+    if remaining_ps:
+        pids_str = " ".join(str(p) for p in sorted(remaining_ps))
+        batch_status = _exec(
+            f"for pid in {pids_str}; do "
+            f"[ -d /proc/$pid ] || continue; "
+            f"echo ===PID=$pid; "
+            f"cat /proc/$pid/status 2>/dev/null; "
+            f"echo ---CMD; "
+            f"cat /proc/$pid/cmdline 2>/dev/null | tr '\\0' ' '; "
+            f"echo; "
+            f"done"
+        )
+        _parse_batch(batch_status, remaining_ps, findings,
+                     reason_tmpl="Hidden from ps (remote) — name={{name}} ppid={{ppid}}",
+                     method="proc_vs_ps")
 
     return _build_result(findings)
+
+
+def _parse_batch(raw: str, pid_set: set, findings: list,
+                 reason_tmpl: str, method: str) -> None:
+    """Parse batched /proc/<pid>/status + cmdline output into findings."""
+    current_pid = None
+    status_lines: List[str] = []
+    in_cmd = False
+    cmdline = ""
+
+    for line in raw.splitlines():
+        if line.startswith("===PID="):
+            # Flush previous
+            if current_pid and status_lines:
+                _emit_finding(current_pid, status_lines, cmdline,
+                              reason_tmpl, method, findings)
+            current_pid = int(line.split("=")[1])
+            status_lines = []
+            in_cmd = False
+            cmdline = ""
+        elif line == "---CMD":
+            in_cmd = True
+        elif in_cmd:
+            cmdline += line + " "
+        else:
+            status_lines.append(line)
+
+    # Flush last
+    if current_pid and status_lines:
+        _emit_finding(current_pid, status_lines, cmdline,
+                      reason_tmpl, method, findings)
+
+
+def _emit_finding(pid: int, status_lines: List[str], cmdline: str,
+                  reason_tmpl: str, method: str, findings: list) -> None:
+    ppid, name, uid = 0, "?", "?"
+    for line in status_lines:
+        if line.startswith("PPid:"):
+            try: ppid = int(line.split()[1])
+            except Exception: pass
+        elif line.startswith("Name:"):
+            parts = line.split(None, 1)
+            name = parts[1].strip() if len(parts) > 1 else "?"
+        elif line.startswith("Uid:"):
+            parts = line.split()
+            uid = parts[1] if len(parts) > 1 else "?"
+    if ppid == 2:
+        return  # kernel thread
+    reason = reason_tmpl.format(uid=uid, name=name, ppid=ppid)
+    findings.append(HiddenProcess(
+        pid=pid,
+        cmdline=cmdline.strip() or name or "(unknown)",
+        status=f"Name={name} PPid={ppid} UID={uid}",
+        reason=reason,
+        detection_method=method,
+    ))
 
 
 # ── Shared result builder ─────────────────────────────────────────────────────

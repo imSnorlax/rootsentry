@@ -82,25 +82,31 @@ def _parse_proc_net(raw: str) -> List[dict]:
 def _build_inode_to_pid_map(ssh=None) -> dict:
     """
     Build {inode_str: pid} map.
-    Local: use /proc/net/fib_trie shortcut first, then fd walk with a 3s deadline.
-    Remote: single compact shell one-liner.
+    Remote: uses 'seq 1 32768' NOT 'ls /proc' — rootkits hook getdents64
+    which filters ls output. seq is a builtin iteration, unaffected.
+    Batches all fd reads into a single shell command for speed.
     """
     inode_map: dict = {}
     if ssh:
+        # CRITICAL FIX: use seq not ls /proc — ls uses getdents64 which
+        # rootkits hook to hide their processes. seq is hook-resistant.
         raw = _exec_ssh(ssh,
-            "for pid in $(ls /proc | grep -E '^[0-9]+$'); do "
+            "for pid in $(seq 1 32768); do "
+            "  [ -d /proc/$pid/fd ] || continue; "
             "  for fd in /proc/$pid/fd/*; do "
             "    t=$(readlink $fd 2>/dev/null); "
-            "    if echo \"$t\" | grep -q 'socket:'; then "
-            "      i=$(echo \"$t\" | grep -oE '[0-9]+'); "
-            "      echo \"$i $pid\"; fi; "
-            "  done; done 2>/dev/null")
+            "    case $t in socket:*) "
+            "      i=${t#socket:[}; i=${i%]}; "
+            "      echo $i $pid;; "
+            "    esac; "
+            "  done; "
+            "done 2>/dev/null")
         for line in raw.strip().splitlines():
             p = line.split()
             if len(p) == 2 and p[0].isdigit() and p[1].isdigit():
                 inode_map[p[0]] = int(p[1])
     else:
-        deadline = time.monotonic() + 3.0   # hard 3-second budget
+        deadline = time.monotonic() + 3.0
         try:
             for entry in os.listdir("/proc"):
                 if time.monotonic() > deadline:
