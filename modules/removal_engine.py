@@ -4,11 +4,14 @@ RootSentry — Aggressive Removal / Remediation Engine
 =====================================================
 Multi-stage rootkit removal:
 
-  Stage 1 — Kill processes   : SIGKILL by PID, and fuser -k by port
-  Stage 2 — Block ports      : iptables DROP on hidden ports
-  Stage 3 — Unload modules   : rmmod / modprobe -r / rmmod -f (force)
-  Stage 4 — Delete files     : rm -f suspicious binaries / SUID / rootkit files
-  Stage 5 — Clean persistence: crontabs, systemd units, rc.local, /etc/modules
+  Stage 0  — Proactive blind rmmod on ALL known rootkits
+  Stage 0.5 — Kill rootkit processes by NAME (catches respawned PIDs)
+  Stage 1  — Kill processes   : SIGKILL by PID, and fuser -k by port
+  Stage 2  — Block ports      : iptables DROP on hidden ports
+  Stage 3  — Unload modules   : rmmod / modprobe -r / rmmod -f (force)
+  Stage 4  — Delete files     : rm -f suspicious binaries / SUID / rootkit files
+  Stage 5  — Clean persistence: crontabs, systemd units, rc.local, /etc/modules
+  Stage 6  — Hunt and delete rootkit .ko files from disk
 
 All actions are logged and returned in the remediation report.
 """
@@ -25,12 +28,8 @@ import threading
 from typing import Optional
 
 # ── Per-call action log ───────────────────────────────────────────────────────
-# Each remediate_scan() call creates its OWN local log list and passes it
-# through to every helper.  This eliminates the shared-global bleed bug where
-# concurrent or sequential remediations would read each other's log entries.
 
 def _make_entry(action: str, target: str, success: bool, detail: str = "") -> dict:
-    """Build a single structured log entry (no global side-effects)."""
     return {
         "timestamp": datetime.datetime.utcnow().isoformat(timespec="seconds") + "Z",
         "action":    action,
@@ -40,13 +39,13 @@ def _make_entry(action: str, target: str, success: bool, detail: str = "") -> di
     }
 
 
-# ── Legacy compat shims (kept so any external callers don't break) ─────────────
+# ── Legacy compat shims ────────────────────────────────────────────────────────
 _action_log: list[dict] = []
 _log_lock = threading.Lock()
 
 
 def _log(action: str, target: str, success: bool, detail: str = "") -> dict:
-    """Deprecated: appends to the global log.  Internal code uses _make_entry."""
+    """Deprecated global log — kept for external callers only."""
     entry = _make_entry(action, target, success, detail)
     with _log_lock:
         _action_log.append(entry)
@@ -66,12 +65,6 @@ def clear_action_log() -> None:
 # ── SSH helper ────────────────────────────────────────────────────────────────
 
 def _exec(ssh, cmd: str) -> tuple[bool, str]:
-    """Run cmd over SSH. Returns (success, output).
-
-    Bug #1 fix: use the SSH channel exit status instead of treating any
-    stderr output as failure.  Many tools (chattr, iptables, crontab, rmmod)
-    write informational messages to stderr even on success.
-    """
     try:
         _, stdout, stderr = ssh.exec_command(cmd, timeout=30)
         out      = stdout.read().decode(errors="replace").strip()
@@ -84,7 +77,6 @@ def _exec(ssh, cmd: str) -> tuple[bool, str]:
 
 
 def _run_local(cmd: str) -> tuple[bool, str]:
-    """Run cmd locally. Returns (success, output)."""
     try:
         r = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=30)
         if r.returncode == 0:
@@ -101,14 +93,7 @@ def _run(ssh, cmd: str) -> tuple[bool, str]:
 # ── Stage 1: Kill processes ───────────────────────────────────────────────────
 
 def kill_process(pid: int, ssh=None) -> dict:
-    """SIGKILL a PID.
-
-    Bug #2 fix: for SSH kills, remove the unconditional '|| true' so we get
-    a real exit code, and pass 'ok' through to the log instead of hardcoding
-    True.
-    Bug #12 fix: accept int or str pid (JSON deserialisation may give either).
-    """
-    pid = int(pid)  # normalise: JSON may deserialise as int already, str from old saves
+    pid = int(pid)
     if ssh:
         ok, detail = _exec(ssh, f"kill -9 {pid} 2>&1")
         return _make_entry("kill_process", str(pid), ok, f"kill -9 {pid}: {detail or 'OK'}")
@@ -119,19 +104,12 @@ def kill_process(pid: int, ssh=None) -> dict:
         except ProcessLookupError:
             return _make_entry("kill_process", str(pid), False, f"PID {pid} not found")
         except PermissionError:
-            return _make_entry("kill_process", str(pid), False, f"Permission denied (need root)")
+            return _make_entry("kill_process", str(pid), False, "Permission denied (need root)")
         except Exception as exc:
             return _make_entry("kill_process", str(pid), False, str(exc))
 
 
 def kill_port_process(port: int, ssh=None) -> dict:
-    """
-    Kill whatever process is listening on a port using fuser.
-
-    Bug #4 fix: pass 'ok' through to the log instead of hardcoding True.
-    We keep '|| true' only on the second fuser call so one protocol failing
-    doesn't mask the overall result.
-    """
     cmd = f"fuser -k -n tcp {port} 2>&1; fuser -k -n udp {port} 2>&1; true"
     ok, detail = _run(ssh, cmd)
     return _make_entry("kill_port_process", str(port),
@@ -139,11 +117,6 @@ def kill_port_process(port: int, ssh=None) -> dict:
 
 
 def _block_port_iptables(port: int, ssh=None) -> dict:
-    """Drop all traffic to/from a hidden port with iptables.
-
-    Bug #5 fix: track whether all four iptables rules actually succeeded
-    instead of hardcoding True.
-    """
     cmds = [
         f"iptables -A INPUT  -p tcp --dport {port} -j DROP 2>&1",
         f"iptables -A OUTPUT -p tcp --sport {port} -j DROP 2>&1",
@@ -166,31 +139,22 @@ def _block_port_iptables(port: int, ssh=None) -> dict:
 # ── Stage 2: Unload kernel modules ───────────────────────────────────────────
 
 def unload_module(module_name: str, ssh=None) -> dict:
-    """
-    Attempt rmmod, then modprobe -r, then rmmod --force (last resort).
-    Also purges from /etc/modules and /etc/modules-load.d/.
-    After all attempts, verifies the module is truly gone from /proc/modules.
-    """
     results  = []
     ok = ok2 = ok3 = False
 
-    # Try rmmod first
     ok, out = _run(ssh, f"rmmod {shlex.quote(module_name)} 2>&1")
     if ok:
         results.append("rmmod OK")
     else:
         results.append(f"rmmod failed: {out}")
-        # Try modprobe -r
         ok2, out2 = _run(ssh, f"modprobe -r {shlex.quote(module_name)} 2>&1")
         if ok2:
             results.append("modprobe -r OK")
         else:
             results.append(f"modprobe -r: {out2}")
-            # Force remove
             ok3, out3 = _run(ssh, f"rmmod --force {shlex.quote(module_name)} 2>&1")
             results.append("rmmod --force OK" if ok3 else f"rmmod --force: {out3}")
 
-    # Remove from persistence
     safe_pattern = re.escape(module_name)
     persist_cmd = (
         f"sed -i '\\|{safe_pattern}|d' /etc/modules 2>/dev/null; "
@@ -199,12 +163,11 @@ def unload_module(module_name: str, ssh=None) -> dict:
     _run(ssh, persist_cmd)
     results.append("persistence cleaned")
 
-    # Verify the module is actually gone
     still_there_ok, still_there_out = _run(
         ssh, f"grep -qw {shlex.quote(module_name)} /proc/modules 2>/dev/null && echo LOADED || echo GONE"
     )
     if "LOADED" in still_there_out:
-        results.append("WARNING: module still in /proc/modules after all removal attempts — reboot required")
+        results.append("WARNING: module still in /proc/modules — reboot required")
         overall_ok = False
     else:
         overall_ok = ok or ok2 or ok3
@@ -216,13 +179,6 @@ def unload_module(module_name: str, ssh=None) -> dict:
 # ── Stage 3: Remove files ─────────────────────────────────────────────────────
 
 def clean_file(path: str, ssh=None) -> dict:
-    """Force-delete a file, clearing immutable bit first if needed.
-
-    Bug #8 fix: use shlex.quote() instead of Python's !r repr-quoting.
-    repr() wraps the string in Python single-quotes which break if the path
-    itself contains a single-quote character.  shlex.quote() handles all
-    shell-unsafe characters correctly.
-    """
     quoted = shlex.quote(path)
     cmd    = f"chattr -i {quoted} 2>/dev/null; rm -f -- {quoted} 2>&1"
     ok, detail = _run(ssh, cmd)
@@ -233,21 +189,12 @@ def clean_file(path: str, ssh=None) -> dict:
 
 def _clean_persistence(ssh=None, known_rootkits: list[str] | None = None) -> list[dict]:
     """
-    Search and destroy persistence mechanisms:
-    - User/root crontabs
-    - Systemd units
-    - /etc/rc.local
-    - /etc/init.d
-    - /etc/modules + /etc/modules-load.d
-    - /tmp /dev/shm /var/tmp dropper files
+    Bug fix: all entries now use _make_entry() (not global _log()),
+    collected into a LOCAL list to prevent concurrent remediation bleed.
     """
     if known_rootkits is None:
-        known_rootkits = [
-            "caraxes",
-            "diamorphine", "reptile", "azazel", "beurk",
-            "necurs", "suterusu", "adore-ng", "knark", "modhide", "kbeast",
-            "jynx",
-        ]
+        from config import KNOWN_ROOTKITS
+        known_rootkits = KNOWN_ROOTKITS
 
     actions = []
     pattern = "|".join(known_rootkits)
@@ -261,7 +208,7 @@ def _clean_persistence(ssh=None, known_rootkits: list[str] | None = None) -> lis
     )
     ok, out = _run(ssh, cmd)
     if out:
-        actions.append(_log("clean_crontab", "crontab", ok, out[:200]))
+        actions.append(_make_entry("clean_crontab", "crontab", ok, out[:200]))
 
     # Systemd units
     cmd2 = (
@@ -270,7 +217,7 @@ def _clean_persistence(ssh=None, known_rootkits: list[str] | None = None) -> lis
     )
     ok2, out2 = _run(ssh, cmd2)
     if out2:
-        actions.append(_log("clean_systemd", "systemd units", ok2, out2[:200]))
+        actions.append(_make_entry("clean_systemd", "systemd units", ok2, out2[:200]))
 
     # rc.local
     cmd3 = (
@@ -279,7 +226,7 @@ def _clean_persistence(ssh=None, known_rootkits: list[str] | None = None) -> lis
     )
     ok3, out3 = _run(ssh, cmd3)
     if out3:
-        actions.append(_log("clean_rclocal", "/etc/rc.local", ok3, out3[:200]))
+        actions.append(_make_entry("clean_rclocal", "/etc/rc.local", ok3, out3[:200]))
 
     # Suspicious dropper files in temp dirs
     cmd4 = (
@@ -289,7 +236,7 @@ def _clean_persistence(ssh=None, known_rootkits: list[str] | None = None) -> lis
     )
     ok4, out4 = _run(ssh, cmd4)
     if out4:
-        actions.append(_log("clean_dropper_files", "/tmp /dev/shm /var/tmp", ok4, out4[:300]))
+        actions.append(_make_entry("clean_dropper_files", "/tmp /dev/shm /var/tmp", ok4, out4[:300]))
 
     # /etc/ld.so.preload (common rootkit injection vector)
     cmd5 = (
@@ -300,26 +247,14 @@ def _clean_persistence(ssh=None, known_rootkits: list[str] | None = None) -> lis
     )
     ok5, out5 = _run(ssh, cmd5)
     if out5:
-        actions.append(_log("clean_ld_preload", "/etc/ld.so.preload", ok5, out5[:200]))
+        actions.append(_make_entry("clean_ld_preload", "/etc/ld.so.preload", ok5, out5[:200]))
 
     return actions
 
 
-# ── Stage 5 (new): Proactive blind-unload of all known rootkit modules ────────
-# Some rootkits hide themselves from /proc/modules (e.g. Caraxes can hide its
-# own module entry). The detection-based unload in Stage 3 won't fire if the
-# scanner never saw the module. This stage blindly tries rmmod on every known
-# rootkit name — a failed rmmod on a non-loaded module is harmless and fast.
+# ── Stage 5: Proactive blind-unload of all known rootkit modules ──────────────
 
-def _kill_by_name(ssh=None,
-                   known_rootkits: list[str] | None = None) -> list[dict]:
-    """
-    Stage 0.5 — kill rootkit processes by NAME, not just by stale PID.
-
-    Scans /proc/*/cmdline and /proc/*/comm for strings matching any known
-    rootkit name, then SIGKILLs them.  This catches processes that respawned
-    with a new PID after the original scan was taken.
-    """
+def _kill_by_name(ssh=None, known_rootkits: list[str] | None = None) -> list[dict]:
     if known_rootkits is None:
         from config import KNOWN_ROOTKITS
         known_rootkits = KNOWN_ROOTKITS
@@ -327,14 +262,12 @@ def _kill_by_name(ssh=None,
     actions = []
     pattern = "|".join(re.escape(n) for n in known_rootkits)
 
-    # Use pkill first (handles both comm and cmdline)
     pkill_cmd = f"pkill -9 -f '{pattern}' 2>&1; true"
     ok, out = _run(ssh, pkill_cmd)
     if out:
         actions.append(_make_entry("pkill_by_name", pattern[:60], ok,
                                    f"pkill -9 -f: {out[:120]}"))
 
-    # Also walk /proc manually to catch rootkits hiding from pkill itself
     proc_cmd = (
         f"for pid in $(ls /proc | grep -E '^[0-9]+$'); do "
         f"  cmdline=$(cat /proc/$pid/cmdline 2>/dev/null | tr '\\0' ' '); "
@@ -351,13 +284,7 @@ def _kill_by_name(ssh=None,
     return actions
 
 
-def _force_unload_all_known(ssh=None,
-                             known_rootkits: list[str] | None = None) -> list[dict]:
-    """
-    Attempt rmmod on every known rootkit name unconditionally.
-    Catches rootkits that hide from /proc/modules and therefore evade
-    the detection-based unload path.
-    """
+def _force_unload_all_known(ssh=None, known_rootkits: list[str] | None = None) -> list[dict]:
     if known_rootkits is None:
         from config import KNOWN_ROOTKITS
         known_rootkits = KNOWN_ROOTKITS
@@ -366,35 +293,25 @@ def _force_unload_all_known(ssh=None,
     for name in known_rootkits:
         ok, out = _run(ssh, f"rmmod {shlex.quote(name)} 2>&1")
         if ok:
-            # Module was actually loaded and now removed — log it
             actions.append(_make_entry("force_unload", name, True,
                                        "Blind rmmod succeeded — module was hidden from scanner"))
-            # Also strip from persistence
             safe = re.escape(name)
             _run(ssh, (
                 f"sed -i '\\|{safe}|d' /etc/modules 2>/dev/null; "
                 f"rm -f /etc/modules-load.d/{shlex.quote(name + '.conf')} 2>/dev/null; true"
             ))
-        # Intentionally don't log failures — most names won't be loaded
     return actions
 
 
-# ── Stage 6 (new): Hunt and delete rootkit .ko files from disk ────────────────
+# ── Stage 6: Hunt and delete rootkit .ko files ────────────────────────────────
 
-def _delete_ko_files(ssh=None,
-                     known_rootkits: list[str] | None = None) -> list[dict]:
-    """
-    Find and remove rootkit kernel object (.ko) files so the rootkit can't
-    be re-inserted after a reboot or by a persistence script.
-    Searches /lib/modules, /tmp, /dev/shm, /var/tmp, /opt, /home, /root.
-    """
+def _delete_ko_files(ssh=None, known_rootkits: list[str] | None = None) -> list[dict]:
     if known_rootkits is None:
         from config import KNOWN_ROOTKITS
         known_rootkits = KNOWN_ROOTKITS
 
     actions = []
     name_pattern = "|".join(re.escape(n) for n in known_rootkits)
-    # find .ko files whose filename matches any known rootkit name
     cmd = (
         f"find /lib/modules /tmp /dev/shm /var/tmp /opt /home /root "
         f"-name '*.ko' -type f 2>/dev/null | "
@@ -419,45 +336,31 @@ def remediate_scan(scan_result: dict, ssh_client=None,
                    block_ports: bool = True) -> dict:
     """
     Fully aggressive remediation of all findings from a scan result.
-
-    Bug fix: every action entry is now built with _make_entry() and collected
-    in a LOCAL list — no shared global state, safe for concurrent calls.
-
-    Execution order:
-      0. Proactively try rmmod on ALL known rootkits, even if not detected
-         (catches rootkits that hide from /proc/modules like Caraxes)
-      1. Kill hidden processes (SIGKILL by PID)
-      2. Kill + block hidden ports (fuser + iptables)
-      3. Unload rootkit kernel modules identified by scanner (rmmod / force)
-      4. Delete suspicious files
-      5. Destroy persistence (cron, systemd, rc.local, ld.so.preload, droppers)
-      6. Hunt and delete rootkit .ko files from disk
+    All action entries are built with _make_entry() in a LOCAL list — no shared
+    global state, safe for concurrent calls.
     """
     actions: list[dict] = []
     ssh = ssh_client
     mods = scan_result.get("modules", {})
 
-    # ── 0. Proactive blind-unload (catches hidden/self-hiding modules) ─────
+    # 0. Proactive blind-unload (catches hidden/self-hiding modules)
     actions.extend(_force_unload_all_known(ssh))
 
-    # ── 0.5. Kill rootkit processes by NAME ───────────────────────────────
-    # Catches processes that respawned with new PIDs after the scan was taken.
+    # 0.5. Kill rootkit processes by NAME
     actions.extend(_kill_by_name(ssh))
 
-    # ── 1. Kill hidden processes (by stale PID from scan) ─────────────────
+    # 1. Kill hidden processes (by stale PID from scan)
     if kill_procs:
         proc_mod = mods.get("process_scanner", {})
         for finding in proc_mod.get("findings", []):
             pid = finding.get("pid")
-            # pid can be int (new schema) or str (old saves) — int() handles both
             if pid is not None:
                 try:
                     actions.append(kill_process(int(pid), ssh))
                 except (ValueError, TypeError):
                     pass
 
-    # ── 2. Kill + block hidden ports ──────────────────────────────────────
-    # Hidden ports can come from fs_checker (both local and remote scans)
+    # 2. Kill + block hidden ports
     fs_mod = mods.get("fs_checker", {})
     for finding in fs_mod.get("findings", []):
         if finding.get("type") == "hidden_port":
@@ -472,7 +375,7 @@ def remediate_scan(scan_result: dict, ssh_client=None,
                 except (ValueError, TypeError):
                     pass
 
-    # ── 3. Unload rootkit modules ──────────────────────────────────────────
+    # 3. Unload rootkit modules
     if unload_mods:
         sys_mod = mods.get("syscall_inspector", {})
         for finding in sys_mod.get("findings", []):
@@ -481,7 +384,7 @@ def remediate_scan(scan_result: dict, ssh_client=None,
                 if mod_name:
                     actions.append(unload_module(mod_name, ssh))
 
-    # ── 4. Delete suspicious files ────────────────────────────────────────
+    # 4. Delete suspicious files
     if clean_files:
         _DELETABLE_TYPES = {
             "suspicious_suid", "world_writable",
@@ -493,24 +396,23 @@ def remediate_scan(scan_result: dict, ssh_client=None,
             if path and ftype in _DELETABLE_TYPES:
                 actions.append(clean_file(path, ssh))
 
-    # ── 5. Clean persistence ──────────────────────────────────────────────
+    # 5. Clean persistence
     if clean_persistence:
         actions.extend(_clean_persistence(ssh))
 
-    # ── 6. Delete rootkit .ko files from disk ─────────────────────────────
+    # 6. Delete rootkit .ko files from disk
     if clean_files:
         actions.extend(_delete_ko_files(ssh))
 
     succeeded = sum(1 for a in actions if a["success"])
     failed    = len(actions) - succeeded
 
-    # Check if any module unload failed — reboot is the last resort
     mod_unload_failed = any(
         not a["success"] and a["action"] in ("unload_module", "force_unload")
         for a in actions
     )
     reboot_note = (
-        " \u26a0 One or more kernel modules could not be unloaded \u2014 "
+        " ⚠ One or more kernel modules could not be unloaded — "
         "REBOOT the target to evict them from memory."
         if mod_unload_failed else ""
     )

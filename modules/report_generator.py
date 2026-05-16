@@ -2,12 +2,12 @@
 modules/report_generator.py
 RootSentry — Report Generator
 ==============================
-Generates an HTML scan report and optionally exports it to PDF.
+Generates a self-contained HTML scan report.
 
 Usage (standalone):
     from modules.report_generator import generate_html_report, save_report
     html = generate_html_report(scan_result)
-    path = save_report(scan_result, fmt="html")   # or fmt="pdf"
+    path = save_report(scan_result, fmt="html")
 
 PDF export requires weasyprint:
     pip install weasyprint
@@ -15,19 +15,27 @@ PDF export requires weasyprint:
 
 from __future__ import annotations
 
+import html as _html
 import json
 import os
 import datetime
 from typing import Optional
 
-
 REPORTS_DIR = "reports"
+
+
+# ── Safe HTML escape ──────────────────────────────────────────────────────────
+
+def _e(value) -> str:
+    """HTML-escape any value (fixes XSS vulnerability)."""
+    return _html.escape(str(value) if value is not None else "", quote=True)
 
 
 # ── Colour / severity helpers ─────────────────────────────────────────────────
 
 def _risk_colour(risk: str) -> str:
-    return {"clean": "#22c55e", "suspicious": "#f59e0b", "infected": "#ef4444"}.get(
+    return {"clean": "#22c55e", "suspicious": "#f59e0b",
+            "infected": "#ef4444", "remediated": "#a78bfa"}.get(
         risk.lower(), "#94a3b8"
     )
 
@@ -39,7 +47,8 @@ def _threat_badge(count: int) -> str:
         colour = "#f59e0b"
     else:
         colour = "#ef4444"
-    return f'<span style="background:{colour};padding:2px 10px;border-radius:12px;color:#fff;font-weight:700">{count}</span>'
+    return (f'<span style="background:{colour};padding:2px 10px;border-radius:12px;'
+            f'color:#fff;font-weight:700">{count}</span>')
 
 
 # ── HTML helpers ──────────────────────────────────────────────────────────────
@@ -49,11 +58,14 @@ def _findings_table(findings: list[dict]) -> str:
         return '<p style="color:#94a3b8;font-style:italic">No findings.</p>'
     rows = ""
     for f in findings:
-        ftype  = f.get("type", "—")
-        label  = (f.get("pid") or f.get("path") or f.get("port") or
-                  f.get("module") or f.get("symbol") or "—")
-        detail = f.get("detail", "—")
-        colour = "#ef4444" if "rootkit" in ftype or "hidden" in ftype else "#f59e0b"
+        ftype  = _e(f.get("type", "—"))
+        label  = _e(
+            f.get("pid") or f.get("path") or f.get("port") or
+            f.get("module") or f.get("symbol") or
+            f.get("local_port") or "—"
+        )
+        detail = _e(f.get("detail", "—"))
+        colour = "#ef4444" if any(k in ftype for k in ("rootkit", "hidden")) else "#f59e0b"
         rows += f"""
         <tr>
           <td><span style="background:{colour}22;color:{colour};padding:2px 8px;
@@ -75,7 +87,7 @@ def _findings_table(findings: list[dict]) -> str:
 
 
 def _module_section(mod_name: str, mod: dict) -> str:
-    icon  = "✘" if mod.get("threat_count", 0) else "✔"
+    icon   = "✘" if mod.get("threat_count", 0) else "✔"
     colour = "#ef4444" if mod.get("threat_count", 0) else "#22c55e"
     table  = _findings_table(mod.get("findings", []))
     return f"""
@@ -83,11 +95,72 @@ def _module_section(mod_name: str, mod: dict) -> str:
                 border-left:4px solid {colour}">
       <h3 style="margin:0 0 8px;color:#f1f5f9">
         <span style="color:{colour}">{icon}</span>
-        &nbsp;{mod_name}
+        &nbsp;{_e(mod_name)}
         &nbsp;{_threat_badge(mod.get("threat_count", 0))}
       </h3>
-      <p style="color:#94a3b8;margin:0 0 16px">{mod.get("summary", "")}</p>
+      <p style="color:#94a3b8;margin:0 0 16px">{_e(mod.get("summary", ""))}</p>
       {table}
+    </div>"""
+
+
+def _ioc_section(scan_result: dict) -> str:
+    """Extract all Indicators of Compromise into a dedicated table."""
+    iocs = []
+    for mod_name, mod in scan_result.get("modules", {}).items():
+        for f in mod.get("findings", []):
+            ftype = f.get("type", "")
+            if ftype == "error":
+                continue
+            ioc_type = ftype.replace("_", " ").title()
+            # Build IOC value
+            val = (
+                f.get("module") or
+                str(f.get("pid") or "") or
+                f.get("path") or
+                str(f.get("port") or "") or
+                f.get("symbol") or
+                str(f.get("local_port") or "") or
+                f.get("remote_addr") or
+                "—"
+            )
+            iocs.append({
+                "module":  mod_name,
+                "type":    ioc_type,
+                "value":   val,
+                "detail":  f.get("detail", ""),
+            })
+
+    if not iocs:
+        return ""
+
+    rows = ""
+    for ioc in iocs:
+        rows += f"""
+        <tr>
+          <td style="padding:7px 12px;color:#94a3b8;font-size:.82rem">{_e(ioc['module'])}</td>
+          <td style="padding:7px 12px">
+            <span style="background:#6366f122;color:#818cf8;padding:2px 8px;
+              border-radius:5px;font-size:.78rem">{_e(ioc['type'])}</span>
+          </td>
+          <td style="padding:7px 12px;font-family:monospace;font-size:.82rem;color:#e2e8f0">{_e(ioc['value'])}</td>
+          <td style="padding:7px 12px;color:#94a3b8;font-size:.8rem">{_e(ioc['detail'])}</td>
+        </tr>"""
+
+    return f"""
+    <div style="background:#1e293b;border-radius:12px;padding:24px;margin-bottom:20px;
+                border-left:4px solid #6366f1">
+      <h3 style="margin:0 0 16px;color:#f1f5f9">🔍 Indicators of Compromise (IOCs)</h3>
+      <table style="width:100%;border-collapse:collapse;font-size:.9rem">
+        <thead>
+          <tr style="background:#0f172a;color:#94a3b8;text-align:left">
+            <th style="padding:7px 12px">Module</th>
+            <th style="padding:7px 12px">IOC Type</th>
+            <th style="padding:7px 12px">Value</th>
+            <th style="padding:7px 12px">Detail</th>
+          </tr>
+        </thead>
+        <tbody>{rows}</tbody>
+      </table>
     </div>"""
 
 
@@ -103,17 +176,17 @@ def _remediation_section(remediation: Optional[dict]) -> str:
         status = "✔ OK" if a["success"] else "✘ FAIL"
         rows += f"""
         <tr>
-          <td style="padding:6px 12px">{a['timestamp']}</td>
-          <td style="padding:6px 12px;font-weight:700">{a['action']}</td>
-          <td style="padding:6px 12px;font-family:monospace">{a['target']}</td>
+          <td style="padding:6px 12px">{_e(a['timestamp'])}</td>
+          <td style="padding:6px 12px;font-weight:700">{_e(a['action'])}</td>
+          <td style="padding:6px 12px;font-family:monospace">{_e(a['target'])}</td>
           <td style="padding:6px 12px;color:{ok_col};font-weight:700">{status}</td>
-          <td style="padding:6px 12px;color:#94a3b8">{a.get('detail','')}</td>
+          <td style="padding:6px 12px;color:#94a3b8">{_e(a.get('detail',''))}</td>
         </tr>"""
     return f"""
     <div style="background:#1e293b;border-radius:12px;padding:24px;margin-bottom:20px;
                 border-left:4px solid #6366f1">
       <h3 style="margin:0 0 16px;color:#f1f5f9">🛠 Remediation Actions</h3>
-      <p style="color:#94a3b8;margin:0 0 16px">{remediation.get('summary','')}</p>
+      <p style="color:#94a3b8;margin:0 0 16px">{_e(remediation.get('summary',''))}</p>
       <table style="width:100%;border-collapse:collapse;font-size:0.88rem">
         <thead>
           <tr style="background:#0f172a;color:#94a3b8;text-align:left">
@@ -133,21 +206,19 @@ def _remediation_section(remediation: Optional[dict]) -> str:
 
 def generate_html_report(scan_result: dict,
                           remediation_result: Optional[dict] = None) -> str:
-    """
-    Build a full, self-contained HTML report string from a scan result dict.
-    """
     host        = scan_result.get("host", "localhost")
     risk        = scan_result.get("risk_level", "unknown")
     total       = scan_result.get("total_threats", 0)
+    score       = scan_result.get("weighted_score", 0)
     risk_col    = _risk_colour(risk)
     generated   = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
     scan_ts     = scan_result.get("timestamp", generated)
 
-    # Build module sections
-    modules_html = ""
+    modules_html     = ""
     for mod_name, mod in scan_result.get("modules", {}).items():
         modules_html += _module_section(mod_name, mod)
 
+    ioc_html         = _ioc_section(scan_result)
     remediation_html = _remediation_section(remediation_result)
 
     return f"""<!DOCTYPE html>
@@ -155,7 +226,7 @@ def generate_html_report(scan_result: dict,
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>RootSentry Report — {host}</title>
+  <title>RootSentry Report — {_e(host)}</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono&display=swap" rel="stylesheet"/>
   <style>
     *, *::before, *::after {{ box-sizing: border-box; margin: 0; padding: 0; }}
@@ -166,7 +237,7 @@ def generate_html_report(scan_result: dict,
       padding: 40px 20px;
       min-height: 100vh;
     }}
-    .container {{ max-width: 900px; margin: 0 auto; }}
+    .container {{ max-width: 960px; margin: 0 auto; }}
     .header {{
       background: linear-gradient(135deg, #1e293b, #0f172a);
       border: 1px solid #334155;
@@ -179,35 +250,23 @@ def generate_html_report(scan_result: dict,
     .logo span {{ color: {risk_col}; }}
     .meta {{ color: #64748b; font-size: 0.9rem; margin-top: 8px; }}
     .risk-badge {{
-      display: inline-block;
-      margin-top: 20px;
+      display: inline-block; margin-top: 20px;
       padding: 10px 32px;
-      background: {risk_col}22;
-      border: 2px solid {risk_col};
-      border-radius: 100px;
-      color: {risk_col};
-      font-size: 1.4rem;
-      font-weight: 800;
-      letter-spacing: 2px;
-      text-transform: uppercase;
+      background: {risk_col}22; border: 2px solid {risk_col};
+      border-radius: 100px; color: {risk_col};
+      font-size: 1.4rem; font-weight: 800;
+      letter-spacing: 2px; text-transform: uppercase;
     }}
     .stats-row {{
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 16px;
-      margin-bottom: 32px;
+      display: grid; grid-template-columns: repeat(4, 1fr);
+      gap: 16px; margin-bottom: 32px;
     }}
     .stat-card {{
-      background: #1e293b;
-      border-radius: 12px;
-      padding: 20px;
-      text-align: center;
-      border: 1px solid #334155;
+      background: #1e293b; border-radius: 12px;
+      padding: 20px; text-align: center; border: 1px solid #334155;
     }}
     .stat-card .value {{
-      font-size: 2rem;
-      font-weight: 800;
-      color: #f1f5f9;
+      font-size: 2rem; font-weight: 800; color: #f1f5f9;
       font-family: 'JetBrains Mono', monospace;
     }}
     .stat-card .label {{ color: #64748b; font-size: 0.82rem; margin-top: 4px; }}
@@ -222,8 +281,8 @@ def generate_html_report(scan_result: dict,
 <div class="container">
   <div class="header">
     <div class="logo">Root<span>Sentry</span></div>
-    <div class="meta">Target: <b>{host}</b> &nbsp;|&nbsp; Scanned: {scan_ts} &nbsp;|&nbsp; Report: {generated}</div>
-    <div class="risk-badge">{risk}</div>
+    <div class="meta">Target: <b>{_e(host)}</b> &nbsp;|&nbsp; Scanned: {_e(scan_ts)} &nbsp;|&nbsp; Report: {generated}</div>
+    <div class="risk-badge">{_e(risk)}</div>
   </div>
 
   <div class="stats-row">
@@ -232,14 +291,20 @@ def generate_html_report(scan_result: dict,
       <div class="label">Total Threats</div>
     </div>
     <div class="stat-card">
+      <div class="value">{score}</div>
+      <div class="label">Anomaly Score</div>
+    </div>
+    <div class="stat-card">
       <div class="value">{len(scan_result.get("modules", {}))}</div>
       <div class="label">Modules Run</div>
     </div>
     <div class="stat-card">
-      <div class="value" style="font-size:1.1rem;padding-top:6px">{host}</div>
+      <div class="value" style="font-size:1.1rem;padding-top:6px">{_e(host)}</div>
       <div class="label">Target Host</div>
     </div>
   </div>
+
+  {ioc_html}
 
   <h2>Detection Results</h2>
   {modules_html}
@@ -260,10 +325,6 @@ def save_report(scan_result: dict,
                 remediation_result: Optional[dict] = None,
                 fmt: str = "html",
                 output_dir: str = REPORTS_DIR) -> str:
-    """
-    Save a report to disk. Returns the path to the saved file.
-    fmt = "html" | "pdf"
-    """
     os.makedirs(output_dir, exist_ok=True)
     host = scan_result.get("host", "localhost").replace(".", "_")
     ts   = datetime.datetime.utcnow().strftime("%Y%m%d_%H%M%S")
@@ -278,7 +339,6 @@ def save_report(scan_result: dict,
             WP_HTML(string=html_content).write_pdf(pdf_path)
             return pdf_path
         except ImportError:
-            # Fall back to HTML
             fmt = "html"
 
     html_path = os.path.join(output_dir, f"{stem}.html")

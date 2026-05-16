@@ -11,8 +11,6 @@ from typing import List, Optional
 from config import KNOWN_ROOTKITS, SUSPICIOUS_KALLSYMS
 
 
-# ── Data structures ──────────────────────────────────────────────────────────
-
 class KernelModuleFinding:
     def __init__(self, name: str, size: str, used: str, state: str):
         self.name  = name
@@ -28,10 +26,7 @@ class KallsymsFinding:
         self.reason = reason
 
 
-# ── /proc/modules reader ─────────────────────────────────────────────────────
-
 def _parse_modules(raw: str) -> List[dict]:
-    """Parse /proc/modules lines into structured records."""
     mods = []
     for line in raw.strip().splitlines():
         parts = line.split()
@@ -47,7 +42,6 @@ def _parse_modules(raw: str) -> List[dict]:
 
 
 def _check_modules(raw_modules: str) -> List[dict]:
-    """Return entries that match known rootkit names."""
     findings = []
     for mod in _parse_modules(raw_modules):
         name_lower = mod["name"].lower()
@@ -62,20 +56,13 @@ def _check_modules(raw_modules: str) -> List[dict]:
     return findings
 
 
-# ── /proc/kallsyms reader ────────────────────────────────────────────────────
-
 def _check_kallsyms(raw_kallsyms: str, kptr_restrict: int = 1) -> List[dict]:
     """
     Look for suspicious symbols in /proc/kallsyms.
 
     IMPORTANT: On modern Linux (kernel >= 4.15), kptr_restrict defaults to 1
-    or 2, which causes ALL addresses in /proc/kallsyms to show as 0 even for
-    root. This means zeroed addresses CANNOT be used as a reliable indicator
-    of rootkit hooks unless kptr_restrict = 0.
-
-    We flag:
-      - ONLY if kptr_restrict=0: symbols at 0x0 on critical hooks
-      - ALWAYS: symbol names containing known rootkit strings
+    or 2, which causes ALL addresses to show as 0 even for root.
+    Zeroed-address detection is only reliable when kptr_restrict=0.
     """
     findings = []
     seen = set()
@@ -113,36 +100,34 @@ def _check_kallsyms(raw_kallsyms: str, kptr_restrict: int = 1) -> List[dict]:
     return findings
 
 
-# ── SSH helper ───────────────────────────────────────────────────────────────
+# ── SSH helper — NOW WITH TIMEOUT ────────────────────────────────────────────
 
 def _exec(ssh, cmd: str) -> str:
-    _, stdout, _ = ssh.exec_command(cmd)
+    # Bug fix: added timeout=30 to prevent indefinite blocking on slow/hung SSH channels
+    _, stdout, _ = ssh.exec_command(cmd, timeout=30)
     return stdout.read().decode(errors="replace")
 
 
-# ── Public API ───────────────────────────────────────────────────────────────
-
 def _read_kptr_restrict(ssh_client=None) -> int:
-    """Read /proc/sys/kernel/kptr_restrict. Returns int (0/1/2). Default 1."""
     try:
         if ssh_client:
             _, stdout, _ = ssh_client.exec_command(
-                "cat /proc/sys/kernel/kptr_restrict 2>/dev/null")
+                "cat /proc/sys/kernel/kptr_restrict 2>/dev/null", timeout=10)
             val = stdout.read().decode().strip()
         else:
             with open("/proc/sys/kernel/kptr_restrict") as f:
                 val = f.read().strip()
         return int(val)
     except Exception:
-        return 1   # assume restricted if unreadable
+        return 1
 
 
 def scan_syscalls(ssh_client=None) -> dict:
     kptr = _read_kptr_restrict(ssh_client)
 
     if ssh_client:
-        raw_modules  = _exec(ssh_client, "cat /proc/modules")
-        raw_kallsyms = _exec(ssh_client, "cat /proc/kallsyms")
+        raw_modules  = _exec(ssh_client, "cat /proc/modules 2>/dev/null")
+        raw_kallsyms = _exec(ssh_client, "cat /proc/kallsyms 2>/dev/null")
     else:
         try:
             with open("/proc/modules", "r") as f:
@@ -165,9 +150,9 @@ def scan_syscalls(ssh_client=None) -> dict:
     )
 
     return {
-        "module": "syscall_inspector",
+        "module":       "syscall_inspector",
         "threat_count": len(all_findings),
-        "findings": all_findings,
+        "findings":     all_findings,
         "summary": (
             f"{len(all_findings)} kernel-level hook(s)/rootkit module(s) detected."
             if all_findings

@@ -233,6 +233,7 @@
             <th>Scan Time</th>
             <th>Remediated</th>
             <th></th>
+            <th></th>
           </tr>
         </thead>
         <tbody>
@@ -240,7 +241,7 @@
           {% set sid = s.get('_id', s.get('id','?')) %}
           {% set risk = s.get('risk_level','unknown') %}
           {% set tc = s.get('total_threats',0) %}
-          <tr>
+          <tr data-scan="{{ sid }}">
             <td><a href="/scan/{{ sid }}" class="sl mono">#{{ sid }}</a></td>
             <td>
               <span class="host-tag">
@@ -258,8 +259,10 @@
                 <span style="color:var(--dim);font-size:.78rem">—</span>
               {% endif %}
             </td>
-            <td style="text-align:right">
+            <td style="text-align:right;white-space:nowrap">
               <a href="/scan/{{ sid }}" style="color:var(--accent);font-size:.8rem;text-decoration:none;font-weight:700">View →</a>
+              &nbsp;
+              <button onclick="deleteScan('{{ sid }}')" title="Delete" style="background:none;border:none;cursor:pointer;color:var(--dim);font-size:.9rem;padding:0 4px;vertical-align:middle;transition:color .15s" onmouseover="this.style.color='var(--danger)'" onmouseout="this.style.color='var(--dim)'">&#128465;</button>
             </td>
           </tr>
           {% endfor %}
@@ -333,6 +336,21 @@ document.querySelectorAll('.tc tbody tr').forEach((tr,i)=>{
   tr.style.transition='opacity .35s ease, transform .35s ease';
   setTimeout(()=>{ tr.style.opacity='1'; tr.style.transform='none'; }, 550+i*60);
 });
+
+/* ── Delete scan ── */
+function deleteScan(id) {
+  if (!confirm('Delete scan #' + id + '? This cannot be undone.')) return;
+  fetch('/scan/' + id, {method:'DELETE'})
+    .then(r => r.json())
+    .then(d => {
+      if (d.status === 'deleted') {
+        const row = document.querySelector(`tr[data-scan="${id}"]`);
+        if (row) { row.style.transition='opacity .3s'; row.style.opacity='0'; setTimeout(()=>row.remove(),300); }
+        else window.location.reload();
+      } else { alert('Error: ' + d.error); }
+    })
+    .catch(e => alert('Error: ' + e));
+}
 </script>
 </body>
 </html>

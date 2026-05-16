@@ -1,9 +1,10 @@
 """
 scanner.py — RootSentry main entry point
 ========================================
-Runs all three detection modules (process_scanner, syscall_inspector,
-fs_checker) either locally or against a remote host via SSH, then
-aggregates the results into a risk level: clean / suspicious / infected.
+Runs all detection modules (process_scanner, syscall_inspector,
+fs_checker, net_analyzer) either locally or against a remote host
+via SSH, then aggregates the results into a weighted risk level:
+clean / suspicious / infected.
 
 Local scan:
     python3 scanner.py
@@ -21,20 +22,24 @@ import json
 import sys
 import os
 import uuid
+import logging
 from typing import Optional
 
 # ── Make sure the project root is on sys.path ─────────────────────────────────
-sys.path.insert(0, os.path.dirname(__file__))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 # ── Internal modules ──────────────────────────────────────────────────────────
 from modules.process_scanner  import scan_hidden_processes
 from modules.syscall_inspector import scan_syscalls
 from modules.fs_checker        import scan_filesystem
+from modules.net_analyzer      import scan_network
+
+log = logging.getLogger("rootsentry")
 
 # ── Risk thresholds (mirrors config.py) ──────────────────────────────────────
 RISK_CLEAN      = 0
-RISK_SUSPICIOUS = 1   # 1–2 threats total
-RISK_INFECTED   = 3   # 3+ threats total
+RISK_SUSPICIOUS = 1
+RISK_INFECTED   = 3
 
 
 # ── SSH connection helper ─────────────────────────────────────────────────────
@@ -57,22 +62,38 @@ def _open_ssh(host: str, password: str,
     return client
 
 
-# ── Risk computation ──────────────────────────────────────────────────────────
+# ── Weighted risk computation ─────────────────────────────────────────────────
 
-def _compute_risk(total_threats: int) -> str:
-    if total_threats >= RISK_INFECTED:
+def _compute_risk(total_threats: int, weighted_score: int) -> str:
+    """
+    Dual-signal risk: raw threat count AND weighted anomaly score.
+    Either signal reaching its threshold escalates the risk level.
+    """
+    from config import SCORE_SUSPICIOUS_THRESHOLD, SCORE_INFECTED_THRESHOLD
+    if total_threats >= RISK_INFECTED or weighted_score >= SCORE_INFECTED_THRESHOLD:
         return "infected"
-    if total_threats > RISK_CLEAN:
+    if total_threats > RISK_CLEAN or weighted_score >= SCORE_SUSPICIOUS_THRESHOLD:
         return "suspicious"
     return "clean"
+
+
+def _compute_weighted_score(modules: dict) -> int:
+    """Sum finding-type scores across all modules."""
+    from config import SCORE_WEIGHTS
+    score = 0
+    for mod in modules.values():
+        for f in mod.get("findings", []):
+            ftype = f.get("type", "")
+            score += SCORE_WEIGHTS.get(ftype, 0)
+    return score
 
 
 # ── Pretty printer ────────────────────────────────────────────────────────────
 
 COLOURS = {
-    "clean":      "\033[92m",   # green
-    "suspicious": "\033[93m",   # yellow
-    "infected":   "\033[91m",   # red
+    "clean":      "\033[92m",
+    "suspicious": "\033[93m",
+    "infected":   "\033[91m",
 }
 RESET = "\033[0m"
 
@@ -86,9 +107,11 @@ def _print_result(result: dict) -> None:
     print(f"  {'RootSentry Scan Report':^58}")
     print("═" * 62)
     target = result.get("host", "localhost")
-    print(f"  Target     : {target}")
-    print(f"  Risk level : {colour}{risk.upper()}{RESET}")
+    print(f"  Target        : {target}")
+    print(f"  Risk level    : {colour}{risk.upper()}{RESET}")
     print(f"  Total threats : {total}")
+    score = result.get("weighted_score", 0)
+    print(f"  Anomaly score : {score}")
     print("─" * 62)
 
     for mod_name, mod in result["modules"].items():
@@ -97,11 +120,12 @@ def _print_result(result: dict) -> None:
         for finding in mod.get("findings", []):
             detail = finding.get("detail", "")
             label  = (
-                finding.get("pid")
-                or finding.get("path")
-                or finding.get("port")
-                or finding.get("module")
-                or finding.get("symbol")
+                str(finding.get("pid", ""))
+                or finding.get("path", "")
+                or str(finding.get("port", ""))
+                or finding.get("module", "")
+                or finding.get("symbol", "")
+                or finding.get("remote_addr", "")
                 or ""
             )
             print(f"        • {label}  {detail}")
@@ -113,16 +137,19 @@ def _print_result(result: dict) -> None:
 
 def run_scan(host: Optional[str] = None, password: Optional[str] = None,
              user: str = "root", port: int = 22,
-             progress_cb=None) -> dict:
+             progress_cb=None,
+             scan_id: Optional[str] = None) -> dict:
     """
-    Execute all three detection modules.
+    Execute all detection modules.
     If host/password are provided the scan runs remotely over SSH,
     otherwise it runs locally (requires root on Linux).
 
-    progress_cb: optional callable(step: str) invoked before each phase so
-                 callers (e.g. the web dashboard) can report real progress.
+    progress_cb: optional callable(step: str) invoked before each phase.
                  Step values: 'process_scanner', 'syscall_inspector',
-                              'fs_checker', 'aggregating'.
+                              'fs_checker', 'net_analyzer', 'aggregating'.
+
+    scan_id: optional ID to use when saving; if None a new UUID is generated.
+             Pass this from web_app.py to prevent double-file writes.
     """
     def _cb(step: str):
         if progress_cb:
@@ -147,36 +174,44 @@ def run_scan(host: Optional[str] = None, password: Optional[str] = None,
     print("[*] Scanning filesystem …")
     fs_result   = scan_filesystem(ssh_client=ssh)
 
+    _cb("net_analyzer")
+    print("[*] Scanning network sockets …")
+    net_result  = scan_network(ssh_client=ssh)
+
     if ssh:
         ssh.close()
 
     _cb("aggregating")
-    total_threats = (
-        proc_result["threat_count"]
-        + sys_result["threat_count"]
-        + fs_result["threat_count"]
-    )
-    risk = _compute_risk(total_threats)
+
+    modules_data = {
+        "process_scanner":   proc_result,
+        "syscall_inspector": sys_result,
+        "fs_checker":        fs_result,
+        "net_analyzer":      net_result,
+    }
+
+    total_threats = sum(m["threat_count"] for m in modules_data.values())
+    weighted_score = _compute_weighted_score(modules_data)
+    risk = _compute_risk(total_threats, weighted_score)
+
+    # Use provided scan_id or generate a new one
+    sid = scan_id or str(uuid.uuid4())[:8]
 
     result = {
-        "status":        "done",
-        "host":          host or "localhost",
-        "risk_level":    risk,
-        "total_threats": total_threats,
-        "timestamp":     datetime.datetime.utcnow().isoformat(timespec="seconds") + "Z",
-        "modules": {
-            "process_scanner":   proc_result,
-            "syscall_inspector": sys_result,
-            "fs_checker":        fs_result,
-        },
+        "status":         "done",
+        "id":             sid,
+        "host":           host or "localhost",
+        "risk_level":     risk,
+        "total_threats":  total_threats,
+        "weighted_score": weighted_score,
+        "timestamp":      datetime.datetime.utcnow().isoformat(timespec="seconds") + "Z",
+        "modules":        modules_data,
     }
 
     # ── Persist to scans/ so the web dashboard can load it ──────────────────
     from config import SCANS_DIR
     os.makedirs(SCANS_DIR, exist_ok=True)
-    scan_id = str(uuid.uuid4())[:8]
-    result["id"] = scan_id
-    scan_file = os.path.join(SCANS_DIR, f"{scan_id}.json")
+    scan_file = os.path.join(SCANS_DIR, f"{sid}.json")
     try:
         with open(scan_file, "w", encoding="utf-8") as fh:
             json.dump(result, fh, indent=2)
@@ -215,7 +250,6 @@ def main() -> None:
     parser = _build_parser()
     args   = parser.parse_args()
 
-    # Validate: remote scan needs both host AND password
     if bool(args.host) != bool(args.password):
         parser.error("--host and --password must be used together")
 
@@ -239,7 +273,6 @@ def main() -> None:
         except OSError as exc:
             print(f"[!] Could not save file: {exc}", file=sys.stderr)
 
-    # Exit code reflects risk level
     exit_codes = {"clean": 0, "suspicious": 1, "infected": 2}
     sys.exit(exit_codes.get(result["risk_level"], 3))
 

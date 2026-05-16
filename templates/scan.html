@@ -202,6 +202,7 @@
             <li id="step-proc"><span class="spinner"></span>Scanning hidden processes…</li>
             <li id="step-sys" style="opacity:.4">Scanning kernel hooks &amp; modules…</li>
             <li id="step-fs"  style="opacity:.4">Scanning filesystem…</li>
+            <li id="step-net" style="opacity:.4">Scanning network sockets…</li>
             <li id="step-agg" style="opacity:.4">Aggregating results…</li>
           </ul>
         </div>
@@ -227,8 +228,9 @@ function setMode(m) {
 
 const STEP_ORDER = [
   { step:'process_scanner',   id:'step-proc', label:'Scanning hidden processes…'       },
-  { step:'syscall_inspector', id:'step-sys',  label:'Scanning kernel hooks & modules…' },
+  { step:'syscall_inspector', id:'step-sys',  label:'Scanning kernel hooks &amp; modules…' },
   { step:'fs_checker',        id:'step-fs',   label:'Scanning filesystem…'             },
+  { step:'net_analyzer',      id:'step-net',  label:'Scanning network sockets…'        },
   { step:'aggregating',       id:'step-agg',  label:'Aggregating results…'             },
 ];
 
@@ -279,6 +281,13 @@ function pollScan(scanId) {
       if (status === 'running') {
         if (step === 'aggregating') _showStillRunning();
         setTimeout(() => pollScan(scanId), 1500);
+      } else if (status === 'error') {
+        // Bug fix: show error in progress panel instead of silently redirecting
+        if (_elapsed) clearInterval(_elapsed);
+        const lbl = document.getElementById('p-label');
+        if (lbl) { lbl.style.color='var(--danger)'; lbl.textContent='✘ Scan failed: ' + (data.result && data.result.error ? data.result.error : 'Unknown error'); }
+        const btn = document.getElementById('btn-scan');
+        if (btn) { btn.disabled=false; btn.innerHTML='<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" d="m21 21-4.35-4.35"/></svg> Start Scan'; }
       } else {
         if (_elapsed) clearInterval(_elapsed);
         STEP_ORDER.forEach(s => {
@@ -322,6 +331,12 @@ document.getElementById('scan-form').addEventListener('submit', function(e) {
     alert('Error starting scan: ' + err);
   });
 });
+// Auto-prefill host from ?rescan= query param (Re-scan Host button)
+(function(){
+  const p=new URLSearchParams(window.location.search);
+  const h=p.get('rescan');
+  if(h){ setMode('remote'); document.getElementById('host').value=h; }
+})();
 </script>
 <script>
 (function(){

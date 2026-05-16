@@ -1,9 +1,20 @@
 """
 modules/remote_scanner.py
-Connects to a remote Ubuntu VM via SSH and runs all RootSentry detection
-logic remotely: hidden processes, rootkit kernel modules, and hidden ports.
+=========================
+⚠  DEPRECATION NOTICE
+    This module is a STANDALONE CLI tool only.
+    The web dashboard (web_app.py) uses the full scanner pipeline:
+      modules/process_scanner.py   (3-method: getdents64 + ps + stat brute-force)
+      modules/syscall_inspector.py (kallsyms + /proc/modules)
+      modules/fs_checker.py        (hidden ports + SUID + world-writable + rootkit paths)
+      modules/net_analyzer.py      (socket/PID correlation + C2 port detection)
+    Do NOT add new detection logic here — add it to the individual modules above.
 
-Usage:
+LIMITATION: The _scan_hidden_processes() in this file uses only 2 methods
+    (getdents64 + ps) and therefore CANNOT detect Caraxes-type ftrace rootkits
+    that hook __x64_sys_getdents64. Use process_scanner.py for full detection.
+
+Usage (CLI only):
     python3 modules/remote_scanner.py <HOST> <PASSWORD>
     python3 modules/remote_scanner.py 192.168.1.50 toor
 """
@@ -23,17 +34,23 @@ except ImportError:
 
 # ── Inline config (mirrors config.py values so the module is self-contained) ──
 KNOWN_ROOTKITS = [
-    "diamorphine", "reptile", "azazel", "beurk",
-    "necurs", "suterusu", "adore-ng", "knark", "modhide", "kbeast",
+    # ftrace-based LKM rootkits
+    "caraxes",
+    # syscall-table LKM rootkits
+    "diamorphine", "reptile", "suterusu", "adore-ng", "knark", "modhide", "kbeast",
+    # LD_PRELOAD userland rootkits
+    "azazel", "beurk", "necurs", "jynx",
 ]
 SUSPICIOUS_KALLSYMS = [
     "sys_call_table", "ia32_sys_call_table", "do_fork",
     "tcp4_seq_show", "packet_rcv", "tpacket_rcv", "audit_log_exit",
+    # ftrace-based hooks (Caraxes-type)
+    "getdents64", "getdents", "filldir", "filldir64",
 ]
 
 # ── Risk thresholds ───────────────────────────────────────────────────────────
 RISK_CLEAN      = 0
-RISK_SUSPICIOUS = 2   # 1-2 threats
+RISK_SUSPICIOUS = 1   # 1-2 threats
 RISK_INFECTED   = 3   # 3+ threats
 
 
