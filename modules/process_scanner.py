@@ -357,7 +357,10 @@ def _parse_batch(raw: str, pid_set: set, findings: list,
             if current_pid and status_lines:
                 _emit_finding(current_pid, status_lines, cmdline,
                               reason_tmpl, method, findings)
-            current_pid = int(line.split("=")[1])
+            try:
+                current_pid = int(line.split("===PID=")[1].strip())
+            except (IndexError, ValueError):
+                current_pid = None
             status_lines = []
             in_cmd = False
             cmdline = ""
