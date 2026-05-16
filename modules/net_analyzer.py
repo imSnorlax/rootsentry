@@ -183,7 +183,11 @@ def _analyse(ssh=None) -> List[dict]:
         pid     = inode_map.get(inode)
         cmdline = _get_cmdline(pid, ssh) if pid else "(no owning process)"
 
-        if inode != "0" and pid is None:
+        # Only flag orphan sockets that are LISTEN or ESTABLISHED.
+        # TIME_WAIT (0x06), CLOSE_WAIT (0x08), FIN_WAIT etc. legitimately
+        # have no owning process on clean systems — skip them.
+        active_states = {"0A", "01"}   # LISTEN, ESTABLISHED
+        if inode != "0" and pid is None and state in active_states:
             key = f"orphan:{inode}"
             if key not in seen:
                 seen.add(key)

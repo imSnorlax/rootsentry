@@ -8,8 +8,8 @@ DEFAULT_SSH_TIMEOUT = 10          # seconds
 
 # ── Risk thresholds ──────────────────────────────────────────────────────────
 RISK_CLEAN      = 0
-RISK_SUSPICIOUS = 1              # 1–2 threats
-RISK_INFECTED   = 3              # 3+ threats
+RISK_SUSPICIOUS = 1              # 1–4 threats
+RISK_INFECTED   = 5              # 5+ threats — raised from 3 to reduce false positives
 
 # ── Anomaly score weights ────────────────────────────────────────────────────
 # Used by the weighted risk scorer (higher = more severe finding)
@@ -25,8 +25,8 @@ SCORE_WEIGHTS = {
     "suspicious_socket": 10,   # socket owned by unknown/suspicious process
     "suspicious_file":   12,   # suspicious filename pattern in temp dir
 }
-SCORE_SUSPICIOUS_THRESHOLD = 10   # weighted score ≥ this → suspicious
-SCORE_INFECTED_THRESHOLD   = 30   # weighted score ≥ this → infected
+SCORE_SUSPICIOUS_THRESHOLD = 15   # weighted score ≥ this → suspicious (raised from 10)
+SCORE_INFECTED_THRESHOLD   = 50   # weighted score ≥ this → infected  (raised from 30)
 
 # ── Known rootkit signatures ──────────────────────────────────────────────────
 KNOWN_ROOTKITS = [

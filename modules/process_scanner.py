@@ -279,24 +279,34 @@ def _remote_scan(ssh) -> dict:
         except Exception as exc:
             return ""
 
-    # ── Method A (getdents64 — rootkit may filter this) ──────────────────────
-    raw_a     = _exec("ls /proc 2>/dev/null | grep -E '^[0-9]+$'")
-    proc_pids = set(int(p) for p in raw_a.split() if p.isdigit())
-
-    # ── Method B (ps — also filterable) ──────────────────────────────────────
-    raw_b   = _exec("ps -e -o pid= 2>/dev/null")
-    ps_pids = set(int(p.strip()) for p in raw_b.split() if p.strip().isdigit())
-
-    # ── Method C (stat brute-force — hook-resistant) ─────────────────────────
-    # Uses [ -d /proc/N ] which calls stat(), NOT getdents64.
-    # Capped at 32768 (Ubuntu default pid_max) with a 50s timeout.
-    brute_cmd = (
-        "for i in $(seq 1 32768); "
-        "do [ -d /proc/$i ] && echo $i; "
-        "done 2>/dev/null"
+    # Run ALL 3 methods in ONE SSH call to eliminate timing-race false positives.
+    # If each method is a separate exec_command, the bash process running method C
+    # (brute-force) exists AFTER method A/B ran, so it appears in brute_pids but
+    # not in proc_pids -> false "hidden process" finding.
+    combined_cmd = (
+        "echo ===PROC; "
+        "ls /proc 2>/dev/null | grep -E '^[0-9]+$'; "
+        "echo ===PS; "
+        "ps -e -o pid= 2>/dev/null; "
+        "echo ===BRUTE; "
+        "for i in $(seq 1 32768); do [ -d /proc/$i ] && echo $i; done 2>/dev/null"
     )
-    raw_c      = _exec(brute_cmd, timeout=50)
-    brute_pids = set(int(p) for p in raw_c.split() if p.isdigit())
+    raw_all = _exec(combined_cmd, timeout=60)
+
+    section = None
+    proc_pids: set = set()
+    ps_pids:   set = set()
+    brute_pids: set = set()
+    for line in raw_all.splitlines():
+        line = line.strip()
+        if line == "===PROC":  section = "proc"; continue
+        if line == "===PS":    section = "ps";   continue
+        if line == "===BRUTE": section = "brute"; continue
+        if not line.isdigit(): continue
+        pid = int(line)
+        if section == "proc":  proc_pids.add(pid)
+        elif section == "ps":  ps_pids.add(pid)
+        elif section == "brute": brute_pids.add(pid)
 
     SKIP = {1, 2}
     hook_hidden = brute_pids - proc_pids - SKIP
