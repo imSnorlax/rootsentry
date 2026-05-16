@@ -220,6 +220,16 @@ def _local_scan() -> dict:
         if ppid in _KERNEL_PPIDS:
             continue    # kernel thread — skip
 
+        # Skip threads: Tgid != Pid means this is a thread, not a process.
+        # stat("/proc/<tid>") succeeds for threads but os.listdir("/proc")
+        # only returns process group leaders (where Tgid == Pid).
+        try:
+            tgid = int(status.get("Tgid", "0") or "0")
+            if tgid != pid and tgid != 0:
+                continue  # it's a thread, not a process
+        except Exception:
+            pass
+
         uid_line  = status.get("Uid", "")
         uid       = uid_line.split()[0] if uid_line else "?"
         cmdline   = _explain_pid(pid)
@@ -389,7 +399,7 @@ def _parse_batch(raw: str, pid_set: set, findings: list,
 
 def _emit_finding(pid: int, status_lines: List[str], cmdline: str,
                   reason_tmpl: str, method: str, findings: list) -> None:
-    ppid, name, uid = 0, "?", "?"
+    ppid, name, uid, tgid, pid_val = 0, "?", "?", None, None
     for line in status_lines:
         if line.startswith("PPid:"):
             try: ppid = int(line.split()[1])
@@ -400,6 +410,19 @@ def _emit_finding(pid: int, status_lines: List[str], cmdline: str,
         elif line.startswith("Uid:"):
             parts = line.split()
             uid = parts[1] if len(parts) > 1 else "?"
+        elif line.startswith("Tgid:"):
+            try: tgid = int(line.split()[1])
+            except Exception: pass
+        elif line.startswith("Pid:"):
+            try: pid_val = int(line.split()[1])
+            except Exception: pass
+
+    # CRITICAL: If Tgid != Pid, this entry is a THREAD not a process.
+    # Linux stat("/proc/<tid>") succeeds for all threads, but ls /proc only
+    # lists process group leaders (Tgid==Pid). Threads are NOT hidden processes.
+    if tgid is not None and pid_val is not None and tgid != pid_val:
+        return
+
     if ppid == 2:
         return  # kernel thread
     reason = reason_tmpl.format(uid=uid, name=name, ppid=ppid)
