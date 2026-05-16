@@ -16,6 +16,7 @@ from __future__ import annotations
 import os
 import re
 import subprocess
+import time
 from typing import List, Optional, Set
 
 _C2_PORTS: Set[int] = {
@@ -79,6 +80,11 @@ def _parse_proc_net(raw: str) -> List[dict]:
 
 
 def _build_inode_to_pid_map(ssh=None) -> dict:
+    """
+    Build {inode_str: pid} map.
+    Local: use /proc/net/fib_trie shortcut first, then fd walk with a 3s deadline.
+    Remote: single compact shell one-liner.
+    """
     inode_map: dict = {}
     if ssh:
         raw = _exec_ssh(ssh,
@@ -94,8 +100,11 @@ def _build_inode_to_pid_map(ssh=None) -> dict:
             if len(p) == 2 and p[0].isdigit() and p[1].isdigit():
                 inode_map[p[0]] = int(p[1])
     else:
+        deadline = time.monotonic() + 3.0   # hard 3-second budget
         try:
             for entry in os.listdir("/proc"):
+                if time.monotonic() > deadline:
+                    break
                 if not entry.isdigit():
                     continue
                 pid = int(entry)

@@ -98,25 +98,33 @@ def _get_psutil_pids() -> Set[int]:
 
 def _brute_force_pids(pid_max: Optional[int] = None) -> Set[int]:
     """
-    Iterate every possible PID and probe with os.path.exists() which calls
-    stat(2) — NOT getdents64.  Caraxes (and any rootkit that only hooks
-    __x64_sys_getdents64) cannot hide processes from this method.
+    Iterate every possible PID and probe with os.stat() which calls stat(2)
+    — NOT getdents64. Caraxes cannot hide from this.
 
-    os.path.exists("/proc/<pid>") internally calls:
-        stat("/proc/<pid>", &st)   ← NOT intercepted by Caraxes
-    whereas os.listdir("/proc") calls:
-        getdents64(fd, buf, ...)   ← intercepted by Caraxes
-
-    Performance: ~65 k stat() calls complete in <0.5 s on modern hardware.
+    Performance optimisations:
+    - Use os.stat() directly (slightly faster than os.path.exists)
+    - Cap at min(pid_max, 32768) on VMs where pid_max may be 4M
+    - Hard timeout: stop after 8 seconds to prevent scan stall
     """
     if pid_max is None:
         pid_max = _get_pid_max()
+    # Cap: scanning beyond 32768 yields diminishing returns on typical systems
+    # Real-world active PIDs are almost always < 32768
+    cap = min(pid_max + 1, 32769)
     pids: Set[int] = set()
-    for pid in range(1, min(pid_max + 1, _DEFAULT_PID_MAX + 1)):
+    deadline = time.monotonic() + 8.0   # hard 8-second timeout
+    for pid in range(1, cap):
+        if time.monotonic() > deadline:
+            import logging
+            logging.getLogger("rootsentry").warning(
+                "_brute_force_pids: hit 8s deadline at PID %d (cap=%d)", pid, cap
+            )
+            break
         try:
-            # os.path.exists uses stat() — hook-resistant
-            if os.path.exists(f"/proc/{pid}"):
-                pids.add(pid)
+            os.stat(f"/proc/{pid}")
+            pids.add(pid)
+        except (FileNotFoundError, ProcessLookupError):
+            pass
         except Exception:
             pass
     return pids

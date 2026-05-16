@@ -209,11 +209,11 @@ def _check_suid_binaries(ssh=None) -> List[dict]:
     )
     try:
         if ssh:
-            _, stdout, _ = ssh.exec_command(broad_cmd, timeout=60)
+            _, stdout, _ = ssh.exec_command(broad_cmd, timeout=25)
             broad_out    = stdout.read().decode(errors="replace")
         else:
             r = subprocess.run(broad_cmd, shell=True, capture_output=True,
-                               text=True, timeout=60)
+                               text=True, timeout=20)
             broad_out = r.stdout
 
         for raw in broad_out.strip().splitlines():
@@ -236,7 +236,7 @@ def _check_suid_binaries(ssh=None) -> List[dict]:
     except subprocess.TimeoutExpired:
         findings.append({
             "type":   "error",
-            "detail": "SUID broad scan timed out after 60s — partial results above",
+            "detail": "SUID broad scan timed out after 20s — partial results above",
         })
     except Exception as e:
         findings.append({"type": "error", "detail": f"SUID broad scan: {e}"})
@@ -252,11 +252,11 @@ def _check_world_writable(ssh=None) -> List[dict]:
     cmd  = f"find {dirs} -perm -o+w -type f 2>/dev/null"
     try:
         if ssh:
-            _, stdout, _ = ssh.exec_command(cmd, timeout=30)
+            _, stdout, _ = ssh.exec_command(cmd, timeout=20)
             output = stdout.read().decode(errors="replace")
         else:
             result = subprocess.run(cmd, shell=True, capture_output=True,
-                                    text=True, timeout=30)
+                                    text=True, timeout=15)
             output = result.stdout
 
         for raw_path in output.strip().splitlines():

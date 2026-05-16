@@ -1,0 +1,176 @@
+/* static/green-theme.css — RootSentry Green Theme Override */
+/* Loaded by all templates to enforce the full green palette   */
+
+:root {
+  /* ── Core palette ─────────────────────────────────────── */
+  --bg:      #030805;   /* near-black with green tint        */
+  --surface: #060d06;
+  --card:    #091209;   /* dark green card bg                */
+  --card2:   #0c180c;
+  --border:  #0f2a0f;   /* green-tinted border               */
+  --border2: #134013;
+
+  /* ── Text ─────────────────────────────────────────────── */
+  --text:  #c8e8cc;     /* green-white                       */
+  --text2: #7aaa80;     /* mid green                         */
+  --dim:   #3a5c40;     /* dim green                         */
+
+  /* ── Accent (primary green) ───────────────────────────── */
+  --accent: #00ff88;
+  --ag:     rgba(0,255,136,.1);
+  --ab:     rgba(0,255,136,.3);
+
+  /* ── Danger (red — unchanged) ────────────────────────── */
+  --danger: #ff4f4f;
+  --dg:     rgba(255,79,79,.12);
+  --db:     rgba(255,79,79,.25);
+
+  /* ── Warning ─────────────────────────────────────────── */
+  --warn: #ffe066;
+  --wg:   rgba(255,224,102,.1);
+  --wb:   rgba(255,224,102,.25);
+
+  /* ── Purple ──────────────────────────────────────────── */
+  --purple: #a0f0b0;   /* remapped to pale green            */
+  --pg:     rgba(160,240,176,.1);
+
+  /* ── Sidebar width ────────────────────────────────────── */
+  --sw: 220px;
+}
+
+/* ── Body ──────────────────────────────────────────────────── */
+body {
+  background: var(--bg) !important;
+  background-image:
+    radial-gradient(ellipse 60% 40% at 50% 0%,
+      rgba(0,255,136,.04) 0%, transparent 70%) !important;
+}
+
+/* ── Sidebar ────────────────────────────────────────────────── */
+.sb {
+  background: linear-gradient(180deg, #070f07 0%, #030805 100%) !important;
+  border-right: 1px solid var(--border) !important;
+}
+.sb-logo { border-bottom-color: var(--border) !important; }
+.sb-foot  { border-top-color:    var(--border) !important; }
+.sb-section { color: var(--dim) !important; }
+.sb-item { color: var(--text2) !important; }
+.sb-item:hover { background: rgba(0,255,136,.06) !important; color: var(--text) !important; }
+.sb-item.active { background: var(--ag) !important; color: var(--accent) !important; border-color: var(--ab) !important; }
+
+/* ── Topbar ─────────────────────────────────────────────────── */
+.topbar {
+  background: rgba(3,8,5,.92) !important;
+  border-bottom: 1px solid var(--border) !important;
+}
+
+/* ── Cards ──────────────────────────────────────────────────── */
+.sc, .tc, .form-card, .mod-card, .box, .terminal, .stat-card {
+  background: var(--card) !important;
+  border-color: var(--border) !important;
+}
+.sc:hover { border-color: var(--border2) !important; }
+
+/* Stat card colour overrides — make "blue" green */
+.sc.blue .sc-icon { background: rgba(0,255,136,.08) !important; color: var(--accent) !important; }
+.sc.blue .sc-glow  { background: var(--accent) !important; }
+.sc.blue .sc-val   { color: var(--accent) !important; text-shadow: 0 0 20px rgba(0,255,136,.5) !important; }
+.sc.green .sc-val  { text-shadow: 0 0 24px rgba(0,255,136,.6) !important; }
+
+/* ── Table ──────────────────────────────────────────────────── */
+.tc th { background: rgba(0,0,0,.4) !important; border-bottom-color: var(--border) !important; }
+.tc td { border-bottom-color: rgba(0,255,136,.04) !important; }
+.tc tr:hover td { background: rgba(0,255,136,.04) !important; }
+.tc::before { background: linear-gradient(90deg, var(--accent), transparent) !important; }
+
+/* ── Inputs ─────────────────────────────────────────────────── */
+input[type=text],
+input[type=password],
+input[type=number] {
+  background: #040a04 !important;
+  border-color: var(--border) !important;
+  color: var(--text) !important;
+}
+input:focus {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 3px rgba(0,255,136,.12),
+              0 0 18px rgba(0,255,136,.08) !important;
+}
+
+/* ── Terminal block ─────────────────────────────────────────── */
+.term-body { background: #020602 !important; }
+.term-header { background: rgba(0,0,0,.5) !important; border-bottom-color: var(--border) !important; }
+
+/* ── Scan running box ───────────────────────────────────────── */
+.box { background: var(--card) !important; border-color: var(--border) !important; }
+.radar-ring { border-color: var(--ab) !important; }
+.radar-core { background: var(--ag) !important; border-color: var(--ab) !important; }
+
+/* ── Module cards ───────────────────────────────────────────── */
+.mod-card { border-color: var(--border) !important; }
+
+/* ── Scanline overlay on terminal ───────────────────────────── */
+.terminal::after {
+  background: repeating-linear-gradient(
+    0deg,
+    rgba(0,0,0,0) 0px, rgba(0,0,0,0) 3px,
+    rgba(0,255,136,.015) 3px, rgba(0,255,136,.015) 4px
+  ) !important;
+}
+
+/* ── Global background grid — green tint ────────────────────── */
+.content::before,
+body::before {
+  background-image:
+    linear-gradient(rgba(0,255,136,.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,255,136,.03) 1px, transparent 1px) !important;
+  background-size: 36px 36px !important;
+}
+
+/* ── Radial glow behind form card ───────────────────────────── */
+.content::after {
+  background: radial-gradient(ellipse,
+    rgba(0,255,136,.07) 0%, transparent 70%) !important;
+}
+
+/* ── Risk badge ─────────────────────────────────────────────── */
+.rb.clean { animation: clean-pulse-g 2.5s ease-in-out infinite !important; }
+@keyframes clean-pulse-g {
+  0%,100% { box-shadow: 0 0 0 0 rgba(0,255,136,.5); }
+  50%     { box-shadow: 0 0 14px 4px rgba(0,255,136,.15); }
+}
+
+/* ── Matrix canvas — brighter green ────────────────────────── */
+/* (canvas fillStyle is set via JS, override in JS below)       */
+
+/* ── Section title accent bar ───────────────────────────────── */
+.sec-title::before { background: var(--accent) !important; }
+
+/* ── Scrollbar ──────────────────────────────────────────────── */
+::-webkit-scrollbar-track { background: var(--bg) !important; }
+::-webkit-scrollbar-thumb { background: var(--border2) !important; border-radius: 4px !important; }
+
+/* ── Refresh bar on logs page ───────────────────────────────── */
+.refresh-bar { background: var(--accent) !important; }
+
+/* ── Log level colours ──────────────────────────────────────── */
+.lvl-INFO    { color: #4aaa60 !important; }
+.ll-ts       { color: #1a3a20 !important; }
+.ll-msg      { color: #4a6e50 !important; }
+
+/* ── Tab active ─────────────────────────────────────────────── */
+.tab.active {
+  background: var(--accent) !important;
+  color: #030805 !important;
+  box-shadow: 0 0 20px rgba(0,255,136,.35) !important;
+}
+
+/* ── Scan button ────────────────────────────────────────────── */
+.btn-scan {
+  background: var(--accent) !important;
+  color: #030805 !important;
+}
+.btn-scan:hover {
+  background: #00e87c !important;
+  box-shadow: 0 0 36px rgba(0,255,136,.55) !important;
+}

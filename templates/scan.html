@@ -5,15 +5,16 @@
   <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
   <title>RootSentry — New Scan</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="/static/green-theme.css"/>
   <style>
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
     :root{
-      --bg:#060c14;--surface:#0a1628;--card:#0d1e35;--card2:#0f2040;
-      --border:#1a2e4a;--border2:#1e3555;
-      --text:#c8d8e8;--text2:#8aaac8;--dim:#4a6880;
-      --accent:#00ff88;--ag:rgba(0,255,136,.12);--ab:rgba(0,255,136,.28);
+      --bg:#030805;--surface:#060d06;--card:#091209;--card2:#0c180c;
+      --border:#0f2a0f;--border2:#134013;
+      --text:#c8e8cc;--text2:#7aaa80;--dim:#3a5c40;
+      --accent:#00ff88;--ag:rgba(0,255,136,.1);--ab:rgba(0,255,136,.3);
       --danger:#ff4f4f;--dg:rgba(255,79,79,.12);--db:rgba(255,79,79,.25);
-      --warn:#ffb347;--wg:rgba(255,179,71,.12);
+      --warn:#ffe066;--wg:rgba(255,224,102,.1);
       --sw:220px;
     }
     body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex}
@@ -347,10 +348,10 @@ document.getElementById('scan-form').addEventListener('submit', function(e) {
   window.addEventListener('resize',()=>{d=Array(Math.floor(c.width/18)).fill(1);});
   const s='ABCDEFアイウエオ01βΩ\/<>{}[]|∾';
   setInterval(()=>{
-    x.fillStyle='rgba(6,12,20,0.06)';x.fillRect(0,0,c.width,c.height);
+    x.fillStyle='rgba(3,8,5,0.055)';x.fillRect(0,0,c.width,c.height);
     x.font='13px JetBrains Mono,monospace';
     d.forEach((y,i)=>{
-      x.fillStyle=Math.random()>.93?'rgba(0,255,136,.95)':'rgba(0,255,136,.25)';
+      x.fillStyle=Math.random()>.9?'rgba(0,255,136,1)':'rgba(0,255,136,.3)';
       x.fillText(s[Math.floor(Math.random()*s.length)],i*18,y*18);
       if(y*18>c.height&&Math.random()>.975)d[i]=0;
       d[i]++;

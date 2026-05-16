@@ -5,14 +5,15 @@
   <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
   <title>RootSentry — Logs</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="/static/green-theme.css"/>
   <style>
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
     :root{
-      --bg:#060c14;--surface:#0a1628;--card:#0d1e35;--card2:#0f2040;
-      --border:#1a2e4a;--border2:#1e3555;
-      --text:#c8d8e8;--text2:#8aaac8;--dim:#4a6880;
-      --accent:#00ff88;--ag:rgba(0,255,136,.12);--ab:rgba(0,255,136,.28);
-      --danger:#ff4f4f;--warn:#ffb347;--purple:#b388ff;
+      --bg:#030805;--surface:#060d06;--card:#091209;--card2:#0c180c;
+      --border:#0f2a0f;--border2:#134013;
+      --text:#c8e8cc;--text2:#7aaa80;--dim:#3a5c40;
+      --accent:#00ff88;--ag:rgba(0,255,136,.1);--ab:rgba(0,255,136,.3);
+      --danger:#ff4f4f;--warn:#ffe066;--purple:#a0f0b0;
       --sw:220px;
     }
     body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex}
@@ -258,10 +259,10 @@ setTimeout(() => window.location.reload(), 10000);
   window.addEventListener('resize',()=>{d=Array(Math.floor(c.width/16)).fill(1);});
   const s='0123456789ABCDEFアイウエオ\/|{}[]<>';
   setInterval(()=>{
-    x.fillStyle='rgba(3,8,16,0.065)';x.fillRect(0,0,c.width,c.height);
+    x.fillStyle='rgba(3,8,5,0.055)';x.fillRect(0,0,c.width,c.height);
     x.font='11px JetBrains Mono,monospace';
     d.forEach((y,i)=>{
-      x.fillStyle=Math.random()>.94?'rgba(0,255,136,.9)':'rgba(0,255,136,.18)';
+      x.fillStyle=Math.random()>.9?'rgba(0,255,136,1)':'rgba(0,255,136,.32)';
       x.fillText(s[Math.floor(Math.random()*s.length)],i*16,y*16);
       if(y*16>c.height&&Math.random()>.975)d[i]=0;
       d[i]++;

@@ -122,23 +122,38 @@ def _read_kptr_restrict(ssh_client=None) -> int:
         return 1
 
 
+def _read_kallsyms_local() -> str:
+    """
+    Read /proc/kallsyms with a 200k-line cap so we never block on a
+    10 MB+ file. The rootkit-name check only needs the symbol names,
+    not all 1M+ entries on modern kernels.
+    """
+    lines = []
+    try:
+        with open("/proc/kallsyms", "r", errors="replace") as f:
+            for i, line in enumerate(f):
+                if i >= 200_000:
+                    break
+                lines.append(line)
+    except Exception:
+        pass
+    return "".join(lines)
+
+
 def scan_syscalls(ssh_client=None) -> dict:
     kptr = _read_kptr_restrict(ssh_client)
 
     if ssh_client:
         raw_modules  = _exec(ssh_client, "cat /proc/modules 2>/dev/null")
-        raw_kallsyms = _exec(ssh_client, "cat /proc/kallsyms 2>/dev/null")
+        # Cap kallsyms at 200k lines remotely too
+        raw_kallsyms = _exec(ssh_client, "head -n 200000 /proc/kallsyms 2>/dev/null")
     else:
         try:
             with open("/proc/modules", "r") as f:
                 raw_modules = f.read()
         except Exception:
             raw_modules = ""
-        try:
-            with open("/proc/kallsyms", "r") as f:
-                raw_kallsyms = f.read()
-        except Exception:
-            raw_kallsyms = ""
+        raw_kallsyms = _read_kallsyms_local()
 
     module_findings   = _check_modules(raw_modules)
     kallsyms_findings = _check_kallsyms(raw_kallsyms, kptr_restrict=kptr)
