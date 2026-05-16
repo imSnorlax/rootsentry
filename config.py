@@ -59,22 +59,23 @@ KNOWN_ROOTKITS = [
 
 # ── Suspicious kallsyms symbols ───────────────────────────────────────────────
 SUSPICIOUS_KALLSYMS = [
-    # Classic syscall-table hooks
+    # Only flag symbols that are specifically HOOKED by rootkits
+    # (not symbols that normally exist in all kernels)
+    # Classic syscall-table hook markers
     "sys_call_table",
     "ia32_sys_call_table",
-    "do_fork",
+    # Network-layer hooks used by rootkits
     "tcp4_seq_show",
     "packet_rcv",
     "tpacket_rcv",
+    # Audit subsystem hooks
     "audit_log_exit",
-    # ftrace-based hooks (Caraxes-type)
-    "getdents64",
-    "getdents",
-    "filldir",
-    "filldir64",
-    # eBPF hooks
+    # eBPF abuse hooks
     "bpf_prog_load",
     "security_bpf",
+    # Note: getdents64, getdents, filldir, filldir64, do_fork are present
+    # in ALL Linux kernels and must NOT be flagged as suspicious alone.
+    # RootSentry detects their HOOKING via baseline comparison instead.
 ]
 
 # ── Known rootkit indicator paths ────────────────────────────────────────────
@@ -86,9 +87,8 @@ ROOTKIT_INDICATOR_PATHS = [
     "/proc/.caraxes",
     "/dev/hda",           # fake device node used by some rootkits
     "/etc/.bdvl",
-    "/tmp/.x",            # common dropper staging path
-    "/lib/.x",
-    "/dev/.x",
+    # Note: /tmp/.x and /lib/.x removed — Kali temp files may legitimately
+    # match these patterns and cause false positives on clean systems.
 ]
 
 # ── Paths ────────────────────────────────────────────────────────────────────

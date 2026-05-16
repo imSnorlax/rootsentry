@@ -12,34 +12,70 @@ from typing import List
 from config import ROOTKIT_INDICATOR_PATHS
 
 SUID_WHITELIST = {
+    # Standard Linux
     "/usr/bin/passwd", "/usr/bin/sudo", "/usr/bin/su", "/usr/bin/newgrp",
     "/usr/bin/gpasswd", "/usr/bin/chsh", "/usr/bin/chfn", "/usr/bin/mount",
     "/usr/bin/umount", "/usr/bin/pkexec", "/usr/bin/fusermount",
-    "/usr/bin/fusermount3", "/usr/bin/vmware-user-suid-wrapper",
-    "/usr/bin/staprun", "/usr/bin/at", "/usr/bin/crontab",
+    "/usr/bin/fusermount3", "/usr/bin/at", "/usr/bin/crontab",
     "/usr/bin/wall", "/usr/bin/write", "/usr/bin/ssh-agent",
     "/usr/bin/Xorg", "/usr/bin/dotlockfile", "/usr/bin/expiry",
-    "/usr/bin/newuidmap", "/usr/bin/newgidmap", "/usr/bin/traceroute6.iputils",
+    "/usr/bin/newuidmap", "/usr/bin/newgidmap",
+    "/usr/bin/traceroute6.iputils", "/usr/bin/ping", "/usr/bin/ping6",
+    "/usr/bin/staprun", "/usr/bin/vmware-user-suid-wrapper",
     "/bin/mount", "/bin/umount", "/bin/su", "/bin/ping", "/bin/ping6",
     "/bin/fusermount", "/bin/fusermount3",
     "/usr/sbin/pppd", "/sbin/pppd",
+    # SSH / OpenSSH
     "/usr/lib/openssh/ssh-keysign",
     "/usr/lib/ssh/ssh-keysign",
+    "/usr/lib/x86_64-linux-gnu/openssh/ssh-keysign",
+    # DBus / Polkit
     "/usr/lib/dbus-1.0/dbus-daemon-launch-helper",
     "/usr/lib/policykit-1/polkit-agent-helper-1",
     "/usr/lib/polkit-1/polkit-agent-helper-1",
+    "/usr/lib/x86_64-linux-gnu/polkit-1/polkit-agent-helper-1",
+    # Misc system
     "/usr/lib/eject/dmcrypt-get-device",
     "/usr/lib/xorg/Xorg.wrap",
     "/usr/lib/xorg-core/Xorg",
     "/usr/lib/spice-gtk/spice-client-glib-usb-acl-helper",
     "/usr/lib/NetworkManager/nm-openvpn-auth-dialog",
     "/usr/lib/snapd/snap-confine",
-    "/usr/bin/vmware-user-suid-wrapper",
+    # Kali Linux specific
     "/usr/bin/nmap",
+    "/usr/bin/kismet",
+    "/usr/bin/arping",
+    "/usr/bin/clockdiff",
+    "/usr/sbin/arping",
+    "/usr/sbin/clockdiff",
+    "/usr/sbin/traceroute",
+    "/usr/bin/traceroute",
+    "/usr/bin/tcpdump",
+    "/usr/sbin/tcpdump",
+    "/usr/bin/dumpcap",
+    "/usr/bin/ntfs-3g",
+    "/usr/sbin/ntfs-3g",
+    "/usr/lib/x86_64-linux-gnu/utempter/utempter",
+    "/usr/sbin/exim4",
+    "/usr/sbin/postdrop",
+    "/usr/sbin/postqueue",
+    "/usr/lib/postfix/sbin/postdrop",
+    "/usr/lib/postfix/sbin/postqueue",
+    "/usr/bin/bwrap",
+    "/usr/bin/pkexec",
+    "/usr/lib/policykit-1/polkit-agent-helper-1",
+    "/usr/bin/gnome-pty-helper",
+    "/usr/lib/gnome-disk-utility/gdu-notification-daemon",
+    "/usr/lib/dde-dock/plugins/disk-mount",
+    # Snap / container
+    "/snap/core/current/usr/bin/sudo",
 }
 
 SUID_WHITELIST_PREFIXES = (
     "/snap/", "/proc/", "/sys/", "/var/lib/docker/", "/run/",
+    "/usr/lib/x86_64-linux-gnu/",  # Kali multiarch libs
+    "/usr/lib/i386-linux-gnu/",
+    "/usr/lib/aarch64-linux-gnu/",
 )
 
 SUID_THREAT_DIRS = ("/tmp", "/dev/shm", "/var/tmp", "/dev/mqueue")
