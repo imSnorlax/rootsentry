@@ -5,133 +5,94 @@
   <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
   <title>RootSentry — Scanning…</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet"/>
-  <link rel="stylesheet" href="/static/green-theme.css"/>
   <style>
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-    :root{
-      --bg:#030805;--accent:#00ff88;--ag:rgba(0,255,136,.1);--ab:rgba(0,255,136,.3);
-      --text:#c8e8cc;--dim:#3a5c40;--border:#0f2a0f;--card:#091209;
-    }
+    :root{--bg:#080f08;--card:#0d180d;--border:#1a3a1a;--accent:#00ff88;--ag:rgba(0,255,136,.08);--ab:rgba(0,255,136,.25);--text:#d0ecd0;--dim:#3a5c3a;}
     body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
-
-    /* Animated background grid */
-    body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(0,255,136,.028) 1px,transparent 1px),linear-gradient(90deg,rgba(0,255,136,.028) 1px,transparent 1px);background-size:40px 40px;pointer-events:none}
-
-    .box{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:44px 48px;max-width:480px;width:100%;text-align:center;position:relative;overflow:hidden}
-    .box::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--accent),transparent);animation:slide 2s linear infinite}
-    @keyframes slide{from{transform:translateX(-100%)}to{transform:translateX(100%)}}
-
-    /* Radar ring */
-    .radar{width:88px;height:88px;margin:0 auto 28px;position:relative}
-    .radar-ring{position:absolute;inset:0;border-radius:50%;border:2px solid var(--ab);animation:expand 2s ease-out infinite}
-    .radar-ring:nth-child(2){animation-delay:.4s;opacity:.6}
-    .radar-ring:nth-child(3){animation-delay:.8s;opacity:.3}
-    @keyframes expand{0%{transform:scale(.5);opacity:1}100%{transform:scale(1.8);opacity:0}}
-    .radar-core{position:absolute;inset:10px;border-radius:50%;background:var(--ag);border:2px solid var(--ab);display:flex;align-items:center;justify-content:center;box-shadow:0 0 20px rgba(0,255,136,.2)}
+    .box{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:36px 40px;max-width:420px;width:100%;text-align:center}
+    .radar{width:72px;height:72px;margin:0 auto 24px;position:relative}
+    .radar-ring{position:absolute;inset:0;border-radius:50%;border:1.5px solid var(--ab);animation:expand 2s ease-out infinite}
+    .radar-ring:nth-child(2){animation-delay:.5s;opacity:.5}
+    .radar-ring:nth-child(3){animation-delay:1s;opacity:.25}
+    @keyframes expand{0%{transform:scale(.4);opacity:1}100%{transform:scale(1.8);opacity:0}}
+    .radar-core{position:absolute;inset:12px;border-radius:50%;background:var(--ag);border:1.5px solid var(--ab);display:flex;align-items:center;justify-content:center}
     .radar-core svg{color:var(--accent)}
-
-    h2{font-size:1.35rem;font-weight:800;color:#fff;margin-bottom:7px}
-    .sub{color:var(--dim);font-size:.875rem;line-height:1.5;margin-bottom:28px}
-
-    /* Steps */
-    .steps{text-align:left;margin-bottom:24px}
-    .step{display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid rgba(255,255,255,.04);font-size:.845rem;color:var(--dim)}
+    h2{font-size:1.2rem;font-weight:800;color:#fff;margin-bottom:6px}
+    .sub{color:var(--dim);font-size:.83rem;line-height:1.5;margin-bottom:22px}
+    .p-track{height:2px;background:var(--border);border-radius:2px;overflow:hidden;margin-bottom:20px}
+    .p-fill{height:100%;background:var(--accent);border-radius:2px;animation:pfill 2.5s ease-in-out infinite alternate}
+    @keyframes pfill{from{width:6%}to{width:94%}}
+    .steps{text-align:left;margin-bottom:20px}
+    .step{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(0,255,136,.04);font-size:.82rem;color:var(--dim)}
     .step:last-child{border-bottom:none}
     .step.done{color:var(--accent)}
     .step.active{color:var(--text)}
-    .step-num{width:24px;height:24px;border-radius:50%;border:1.5px solid currentColor;display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:700;flex-shrink:0;transition:all .3s}
-    .step.done .step-num{background:var(--ag);border-color:var(--accent)}
-    .step.active .step-num{border-color:var(--accent);animation:pulse-num 1.5s ease-in-out infinite}
-    @keyframes pulse-num{0%,100%{box-shadow:0 0 0 0 rgba(0,255,136,.4)}50%{box-shadow:0 0 0 6px rgba(0,255,136,0)}}
-    .spinner{width:12px;height:12px;border:2px solid rgba(0,255,136,.2);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;display:inline-block}
+    .step-num{width:22px;height:22px;border-radius:50%;border:1.5px solid currentColor;display:flex;align-items:center;justify-content:center;font-size:.68rem;font-weight:700;flex-shrink:0}
+    .step.active .step-num{border-color:var(--accent);animation:pulse 1.5s ease-in-out infinite}
+    @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(0,255,136,.4)}50%{box-shadow:0 0 0 5px rgba(0,255,136,0)}}
+    .spin{width:10px;height:10px;border:1.5px solid rgba(0,255,136,.2);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;display:inline-block}
     @keyframes spin{to{transform:rotate(360deg)}}
-
-    .id-tag{font-family:'JetBrains Mono',monospace;font-size:.76rem;color:var(--dim);background:rgba(0,0,0,.3);border:1px solid var(--border);border-radius:7px;padding:7px 14px;display:inline-block}
-
-    .p-track{height:3px;background:var(--border);border-radius:2px;overflow:hidden;margin-bottom:22px}
-    .p-fill{height:100%;background:linear-gradient(90deg,var(--accent),#00ccff);border-radius:2px;animation:pfill 2.5s ease-in-out infinite alternate}
-    @keyframes pfill{from{width:8%}to{width:95%}}
+    .id-tag{font-family:'JetBrains Mono',monospace;font-size:.72rem;color:var(--dim);background:rgba(0,0,0,.3);border:1px solid var(--border);border-radius:6px;padding:5px 12px;display:inline-block}
   </style>
   <script>
     const scanId = "{{ scan_id }}";
     const STEPS = [
-      { step:'process_scanner',   id:'s1', label:'Scanning hidden processes'       },
-      { step:'syscall_inspector', id:'s2', label:'Scanning kernel hooks & modules' },
-      { step:'fs_checker',        id:'s3', label:'Scanning filesystem'             },
-      { step:'net_analyzer',      id:'s4', label:'Scanning network sockets'        },
-      { step:'aggregating',       id:'s5', label:'Aggregating results'             },
+      {step:'process_scanner',id:'s1',label:'Scanning hidden processes'},
+      {step:'syscall_inspector',id:'s2',label:'Scanning kernel hooks & modules'},
+      {step:'fs_checker',id:'s3',label:'Scanning filesystem'},
+      {step:'net_analyzer',id:'s4',label:'Scanning network sockets'},
+      {step:'aggregating',id:'s5',label:'Aggregating results'},
     ];
-    let _last = null;
-
-    function render(backendStep) {
-      if (backendStep === _last) return;
-      _last = backendStep;
-      let ai = STEPS.findIndex(s => s.step === backendStep);
-      if (ai === -1 && backendStep !== 'init') ai = STEPS.length - 1;
-      STEPS.forEach((s, i) => {
-        const el = document.getElementById(s.id);
-        if (!el) return;
-        el.className = 'step ' + (i < ai ? 'done' : i === ai ? 'active' : '');
-        const num = el.querySelector('.step-num');
-        if (i < ai) num.innerHTML = '✔';
-        else if (i === ai) num.innerHTML = '<span class="spinner"></span>';
-        else num.textContent = i + 1;
+    let _last=null;
+    function render(s){
+      if(s===_last)return; _last=s;
+      let ai=STEPS.findIndex(x=>x.step===s);
+      if(ai===-1&&s!=='init')ai=STEPS.length-1;
+      STEPS.forEach((x,i)=>{
+        const el=document.getElementById(x.id);
+        if(!el)return;
+        el.className='step '+(i<ai?'done':i===ai?'active':'');
+        const num=el.querySelector('.step-num');
+        if(i<ai)num.innerHTML='✔';
+        else if(i===ai)num.innerHTML='<span class="spin"></span>';
+        else num.textContent=i+1;
       });
     }
-
-    function poll() {
-      fetch('/scan/' + scanId + '/json')
-        .then(r => r.json())
-        .then(d => {
-          render(d.step || 'init');
-          if (d.status === 'error') {
-            // Show error inline instead of redirecting to an error page
-            const h2 = document.querySelector('h2');
-            if (h2) { h2.textContent = 'Scan Failed'; h2.style.color = '#ff4f4f'; }
-            const sub = document.querySelector('.sub');
-            if (sub) sub.textContent = (d.result && d.result.error) ? d.result.error : 'An unexpected error occurred.';
-            setTimeout(() => window.location.href = '/scan/' + scanId, 2500);
-          } else if (d.status !== 'running') {
-            STEPS.forEach(s => {
-              const el = document.getElementById(s.id);
-              if (el) { el.className = 'step done'; el.querySelector('.step-num').innerHTML = '✔'; }
-            });
-            setTimeout(() => window.location.href = '/scan/' + scanId, 300);
-          } else {
-            setTimeout(poll, 1500);
-          }
-        })
-        .catch(() => setTimeout(poll, 2000));
+    function poll(){
+      fetch('/scan/'+scanId+'/json').then(r=>r.json()).then(d=>{
+        render(d.step||'init');
+        if(d.status==='error'){
+          document.querySelector('h2').textContent='Scan Failed';
+          document.querySelector('h2').style.color='#ff4f4f';
+          const sub=document.querySelector('.sub');
+          if(sub)sub.textContent=(d.result&&d.result.error)?d.result.error:'An error occurred.';
+          setTimeout(()=>window.location.href='/scan/'+scanId,2500);
+        } else if(d.status!=='running'){
+          STEPS.forEach(x=>{const el=document.getElementById(x.id);if(el){el.className='step done';el.querySelector('.step-num').innerHTML='✔';}});
+          setTimeout(()=>window.location.href='/scan/'+scanId,300);
+        } else {
+          setTimeout(poll,1500);
+        }
+      }).catch(()=>setTimeout(poll,2000));
     }
-    window.onload = () => { render('init'); setTimeout(poll, 800); };
+    window.onload=()=>{render('init');setTimeout(poll,800);};
   </script>
 </head>
 <body>
   <div class="box">
     <div class="radar">
-      <div class="radar-ring"></div>
-      <div class="radar-ring"></div>
-      <div class="radar-ring"></div>
-      <div class="radar-core">
-        <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-      </div>
+      <div class="radar-ring"></div><div class="radar-ring"></div><div class="radar-ring"></div>
+      <div class="radar-core"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
     </div>
-
     <h2>Scan In Progress</h2>
-    <p class="sub">Analysing the target system for rootkit indicators.<br>You'll be redirected automatically when complete.</p>
-
+    <p class="sub">Analysing the target for rootkit indicators.<br>You'll be redirected when complete.</p>
     <div class="p-track"><div class="p-fill"></div></div>
-
     <div class="steps">
       {% for label in ['Scanning hidden processes','Scanning kernel hooks & modules','Scanning filesystem','Scanning network sockets','Aggregating results'] %}
       {% set i = loop.index %}
-      <div class="step" id="s{{ i }}">
-        <span class="step-num">{{ i }}</span>
-        {{ label }}
-      </div>
+      <div class="step" id="s{{ i }}"><span class="step-num">{{ i }}</span>{{ label }}</div>
       {% endfor %}
     </div>
-
     <div class="id-tag">Scan ID: {{ scan_id }}</div>
   </div>
 </body>
