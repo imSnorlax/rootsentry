@@ -82,29 +82,20 @@ def _parse_proc_net(raw: str) -> List[dict]:
 def _build_inode_to_pid_map(ssh=None) -> dict:
     """
     Build {inode_str: pid} map.
-    Remote: uses 'seq 1 32768' NOT 'ls /proc' — rootkits hook getdents64
-    which filters ls output. seq is a builtin iteration, unaffected.
-    Batches all fd reads into a single shell command for speed.
+    Remote: use 'ss -anpe' — returns inode+pid per socket in one fast call.
+            The old seq/fd-walk timed out at 30s leaving the map empty.
+    Local:  walk /proc/<pid>/fd with a 3s deadline.
     """
     inode_map: dict = {}
     if ssh:
-        # CRITICAL FIX: use seq not ls /proc — ls uses getdents64 which
-        # rootkits hook to hide their processes. seq is hook-resistant.
-        raw = _exec_ssh(ssh,
-            "for pid in $(seq 1 32768); do "
-            "  [ -d /proc/$pid/fd ] || continue; "
-            "  for fd in /proc/$pid/fd/*; do "
-            "    t=$(readlink $fd 2>/dev/null); "
-            "    case $t in socket:*) "
-            "      i=${t#socket:[}; i=${i%]}; "
-            "      echo $i $pid;; "
-            "    esac; "
-            "  done; "
-            "done 2>/dev/null")
-        for line in raw.strip().splitlines():
-            p = line.split()
-            if len(p) == 2 and p[0].isdigit() and p[1].isdigit():
-                inode_map[p[0]] = int(p[1])
+        # ss -anpe shows extended info including 'ino:NNNNN' and 'pid=NNNNN'
+        # on the same line — fast single command, no timeout issues.
+        raw = _exec_ssh(ssh, "ss -anpe 2>/dev/null", timeout=15)
+        for line in raw.splitlines():
+            ino_m = re.search(r'\bino:(\d+)\b', line)
+            pid_m = re.search(r'\bpid=(\d+)\b', line)
+            if ino_m and pid_m:
+                inode_map[ino_m.group(1)] = int(pid_m.group(1))
     else:
         deadline = time.monotonic() + 3.0
         try:
@@ -131,6 +122,14 @@ def _build_inode_to_pid_map(ssh=None) -> dict:
     return inode_map
 
 
+def _get_ss_inodes_from_raw(raw_ss: str) -> Set[str]:
+    """Extract inode set from already-fetched ss -anpe output."""
+    inodes: Set[str] = set()
+    for m in re.finditer(r'\bino:(\d+)\b', raw_ss):
+        inodes.add(m.group(1))
+    return inodes
+
+
 def _get_cmdline(pid: int, ssh=None) -> str:
     if ssh:
         raw = _exec_ssh(ssh, f"cat /proc/{pid}/cmdline 2>/dev/null | tr '\\0' ' '")
@@ -155,6 +154,15 @@ def _analyse(ssh=None) -> List[dict]:
     if ssh:
         raw_tcp = _exec_ssh(ssh, "cat /proc/net/tcp /proc/net/tcp6 2>/dev/null")
         raw_udp = _exec_ssh(ssh, "cat /proc/net/udp /proc/net/udp6 2>/dev/null")
+        # ONE call for both inode_map and ss_inodes — avoids double round-trip
+        raw_ss  = _exec_ssh(ssh, "ss -anpe 2>/dev/null", timeout=15)
+        inode_map = {}
+        for line in raw_ss.splitlines():
+            ino_m = re.search(r'\bino:(\d+)\b', line)
+            pid_m = re.search(r'\bpid=(\d+)\b', line)
+            if ino_m and pid_m:
+                inode_map[ino_m.group(1)] = int(pid_m.group(1))
+        ss_inodes = _get_ss_inodes_from_raw(raw_ss)
     else:
         parts = []
         for f in ["/proc/net/tcp", "/proc/net/tcp6", "/proc/net/udp", "/proc/net/udp6"]:
@@ -165,10 +173,10 @@ def _analyse(ssh=None) -> List[dict]:
                 parts.append("")
         raw_tcp = "\n".join(parts[:2])
         raw_udp = "\n".join(parts[2:])
+        inode_map = _build_inode_to_pid_map()
+        ss_inodes = _get_ss_inodes()
 
     all_sockets = _parse_proc_net(raw_tcp) + _parse_proc_net(raw_udp)
-    inode_map  = _build_inode_to_pid_map(ssh)
-    ss_inodes  = _get_ss_inodes(ssh)
     seen: Set[str] = set()
 
     for sock in all_sockets:
