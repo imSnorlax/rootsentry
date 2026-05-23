@@ -355,6 +355,13 @@ def report(scan_id: str):
     return send_file(path, mimetype="text/html", as_attachment=False)
 
 
+@app.route("/analytics")
+def analytics():
+    _evict_old_entries()
+    scans = _list_scans()
+    return render_template("analytics.html", scans=scans)
+
+
 @app.route("/logs")
 def logs_page():
     lines: list[str] = []
