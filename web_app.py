@@ -522,7 +522,7 @@ def report(scan_id: str):
     if result is None:
         abort(404)
     rem  = result.get("remediation")
-    path = save_report(result, rem, fmt="html", output_dir=REPORTS_DIR)
+    path = save_report(result, rem, fmt="html", output_dir=REPORTS_DIR, scan_id=scan_id)
     return send_file(path, mimetype="text/html", as_attachment=False)
 
 

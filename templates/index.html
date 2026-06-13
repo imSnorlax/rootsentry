@@ -3,205 +3,910 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-  <title>RootSentry — Dashboard</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet"/>
+  <title>RootSentry — Command Center</title>
+  <meta name="description" content="RootSentry Linux Rootkit Detection Dashboard"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet"/>
   <style>
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
     :root{
-      --bg:#080f08;--card:#0d180d;--card2:#101e10;
-      --border:#1a3a1a;--border2:#22482a;
-      --text:#d0ecd0;--text2:#7aaa7a;--dim:#3a5c3a;
-      --accent:#00ff88;--ag:rgba(0,255,136,.08);--ab:rgba(0,255,136,.25);
-      --danger:#ff4f4f;--dg:rgba(255,79,79,.1);--db:rgba(255,79,79,.22);
-      --warn:#ffe066;--wg:rgba(255,224,102,.08);
-      --sw:210px;
+      --void:#050914;
+      --void2:#070d1a;
+      --glass:rgba(8,14,30,0.72);
+      --glass2:rgba(12,20,42,0.6);
+      --glass3:rgba(5,10,22,0.85);
+      --border:rgba(0,240,255,0.08);
+      --border2:rgba(0,240,255,0.18);
+      --border3:rgba(0,240,255,0.35);
+      --cyan:#00F0FF;
+      --cyan-dim:rgba(0,240,255,0.12);
+      --cyan-glow:rgba(0,240,255,0.25);
+      --amber:#FFB000;
+      --amber-dim:rgba(255,176,0,0.1);
+      --amber-glow:rgba(255,176,0,0.22);
+      --red:#FF2A55;
+      --red-dim:rgba(255,42,85,0.1);
+      --red-glow:rgba(255,42,85,0.22);
+      --green:#00FF9F;
+      --green-dim:rgba(0,255,159,0.08);
+      --green-glow:rgba(0,255,159,0.2);
+      --text:#C8D8E8;
+      --text2:#5A7A9A;
+      --text3:#7A9AB8;
+      --sw:230px;
     }
-    body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex}
 
-    /* SIDEBAR */
-    .sb{width:var(--sw);min-height:100vh;background:#060e06;border-right:1px solid var(--border);position:fixed;top:0;left:0;display:flex;flex-direction:column;z-index:100}
-    .sb-logo{padding:20px 16px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border)}
-    .sb-icon{width:34px;height:34px;background:var(--ag);border:1px solid var(--ab);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-    .sb-icon svg{color:var(--accent)}
-    .sb-brand strong{display:block;font-size:.9rem;font-weight:800;color:#fff}
-    .sb-brand span{font-size:.64rem;color:var(--accent);font-family:'JetBrains Mono',monospace}
-    .sb-nav{flex:1;padding:12px 8px}
-    .sb-section{font-size:.6rem;font-weight:700;color:var(--dim);letter-spacing:.12em;text-transform:uppercase;padding:10px 10px 5px}
-    .sb-item{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:7px;color:var(--text2);text-decoration:none;font-size:.82rem;font-weight:500;transition:all .15s;margin-bottom:2px}
-    .sb-item svg{flex-shrink:0;opacity:.5;transition:opacity .15s}
-    .sb-item:hover{background:var(--ag);color:var(--text)}
-    .sb-item:hover svg{opacity:1}
-    .sb-item.active{background:var(--ag);color:var(--accent);border:1px solid var(--ab)}
-    .sb-item.active svg{opacity:1;color:var(--accent)}
-    .sb-foot{padding:12px 14px 16px;border-top:1px solid var(--border)}
-    .sb-status{display:flex;align-items:center;gap:7px;font-size:.73rem;color:var(--text2)}
-    .sb-dot{width:6px;height:6px;border-radius:50%;background:var(--accent);animation:blink 2s ease-in-out infinite}
-    @keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+    html{height:100%}
+    body{
+      font-family:'Inter',sans-serif;
+      background:var(--void);
+      color:var(--text);
+      min-height:100vh;
+      display:flex;
+      overflow-x:hidden;
+      position:relative;
+    }
 
-    /* MAIN */
-    .main{margin-left:var(--sw);flex:1;display:flex;flex-direction:column;min-height:100vh}
-    .topbar{height:56px;background:#060e06;border-bottom:1px solid var(--border);padding:0 28px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50}
-    .topbar-title{font-size:.95rem;font-weight:700;color:#fff}
-    .topbar-sub{font-size:.7rem;color:var(--dim);margin-top:1px}
-    .content{padding:24px 28px;flex:1}
+    /* ═══════════════════════════════════════════════
+       ANIMATED VOID BACKGROUND
+    ═══════════════════════════════════════════════ */
+    .void-bg{
+      position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;
+    }
+    .void-bg::before{
+      content:'';position:absolute;inset:0;
+      background:
+        radial-gradient(ellipse 80% 50% at 20% 20%, rgba(0,240,255,0.04) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 60% at 80% 80%, rgba(255,42,85,0.03) 0%, transparent 60%),
+        radial-gradient(ellipse 70% 40% at 50% 100%, rgba(0,255,159,0.02) 0%, transparent 60%);
+    }
+    /* Scanline overlay */
+    .void-bg::after{
+      content:'';position:absolute;inset:0;
+      background:repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0,240,255,0.005) 2px,
+        rgba(0,240,255,0.005) 4px
+      );
+      pointer-events:none;
+    }
+    /* Floating orbs */
+    .orb{position:absolute;border-radius:50%;filter:blur(80px);animation:drift 20s ease-in-out infinite}
+    .orb1{width:400px;height:400px;background:rgba(0,240,255,0.04);top:-100px;left:10%;animation-delay:0s}
+    .orb2{width:300px;height:300px;background:rgba(255,42,85,0.03);bottom:10%;right:5%;animation-delay:-7s}
+    .orb3{width:250px;height:250px;background:rgba(0,255,159,0.03);top:50%;left:60%;animation-delay:-14s}
+    @keyframes drift{
+      0%,100%{transform:translate(0,0) scale(1)}
+      33%{transform:translate(30px,-20px) scale(1.05)}
+      66%{transform:translate(-20px,30px) scale(0.95)}
+    }
 
-    /* BUTTONS */
-    .btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:7px;font-size:.78rem;font-weight:700;cursor:pointer;border:none;text-decoration:none;font-family:'Inter',sans-serif;transition:all .18s}
-    .btn-green{background:var(--accent);color:#080f08}
-    .btn-green:hover{background:#00e07a;transform:translateY(-1px)}
-    .btn-ghost{background:transparent;color:var(--text2);border:1px solid var(--border)}
-    .btn-ghost:hover{background:var(--card2);color:var(--text)}
+    /* Particle grid */
+    .grid{
+      position:fixed;inset:0;z-index:0;pointer-events:none;
+      background-image:
+        linear-gradient(rgba(0,240,255,0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,240,255,0.025) 1px, transparent 1px);
+      background-size:60px 60px;
+      mask-image:radial-gradient(ellipse 80% 80% at 50% 50%, black 30%, transparent 100%);
+    }
 
-    /* STATS */
-    .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
-    .sc{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px 18px;transition:border-color .18s}
-    .sc:hover{border-color:var(--border2)}
-    .sc-icon{width:30px;height:30px;border-radius:6px;display:flex;align-items:center;justify-content:center;margin-bottom:12px}
-    .sc-g .sc-icon{background:var(--ag);color:var(--accent)}
-    .sc-r .sc-icon{background:var(--dg);color:var(--danger)}
-    .sc-y .sc-icon{background:var(--wg);color:var(--warn)}
-    .sc-v .sc-icon{background:rgba(0,255,136,.06);color:var(--accent)}
-    .sc-val{font-size:1.8rem;font-weight:800;color:#fff;font-family:'JetBrains Mono',monospace;line-height:1;margin-bottom:3px}
-    .sc-g .sc-val{color:var(--accent)}
-    .sc-label{font-size:.66rem;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:.07em}
-    .sc-sub{font-size:.7rem;color:var(--text2);margin-top:4px}
-    @media(max-width:900px){.stats{grid-template-columns:repeat(2,1fr)}}
+    /* ═══════════════════════════════════════════════
+       FLOATING SIDEBAR
+    ═══════════════════════════════════════════════ */
+    .sb{
+      width:var(--sw);min-height:100vh;
+      position:fixed;top:0;left:0;z-index:200;
+      display:flex;flex-direction:column;
+      padding:16px 12px;
+    }
+    .sb-inner{
+      flex:1;display:flex;flex-direction:column;
+      background:var(--glass);
+      backdrop-filter:blur(24px) saturate(1.5);
+      -webkit-backdrop-filter:blur(24px) saturate(1.5);
+      border:1px solid var(--border2);
+      border-radius:18px;
+      box-shadow:
+        0 0 0 1px rgba(0,240,255,0.04),
+        0 8px 32px rgba(0,0,0,0.6),
+        0 0 80px rgba(0,240,255,0.04),
+        inset 0 1px 0 rgba(255,255,255,0.04);
+      overflow:hidden;
+    }
+
+    .sb-logo{
+      padding:20px 16px 16px;
+      display:flex;align-items:center;gap:10px;
+      border-bottom:1px solid var(--border);
+    }
+    .sb-icon{
+      width:36px;height:36px;
+      background:linear-gradient(135deg, rgba(0,240,255,0.15), rgba(0,240,255,0.05));
+      border:1px solid var(--border3);
+      border-radius:10px;
+      display:flex;align-items:center;justify-content:center;
+      color:var(--cyan);
+      box-shadow:0 0 16px rgba(0,240,255,0.2), inset 0 1px 0 rgba(255,255,255,0.08);
+      flex-shrink:0;
+    }
+    .sb-brand strong{
+      display:block;font-size:.88rem;font-weight:800;
+      color:#fff;letter-spacing:-0.3px;
+    }
+    .sb-brand span{
+      font-size:.58rem;color:var(--cyan);
+      font-family:'JetBrains Mono',monospace;
+      letter-spacing:.12em;opacity:.7;
+    }
+
+    .sb-nav{flex:1;padding:10px 8px;overflow-y:auto}
+    .sb-nav::-webkit-scrollbar{display:none}
+    .sb-section{
+      font-size:.55rem;font-weight:700;color:var(--text2);
+      text-transform:uppercase;letter-spacing:.15em;
+      padding:12px 10px 5px;
+    }
+    .sb-item{
+      display:flex;align-items:center;gap:9px;
+      padding:9px 10px;border-radius:10px;
+      color:var(--text2);text-decoration:none;
+      font-size:.78rem;font-weight:500;
+      transition:all .2s cubic-bezier(.4,0,.2,1);
+      margin-bottom:2px;position:relative;
+      letter-spacing:.01em;
+    }
+    .sb-item svg{flex-shrink:0;opacity:.5;transition:all .2s}
+    .sb-item:hover{
+      background:rgba(0,240,255,0.07);
+      color:var(--cyan);
+      transform:translateX(2px);
+    }
+    .sb-item:hover svg{opacity:1;color:var(--cyan)}
+    .sb-item.active{
+      background:linear-gradient(135deg, rgba(0,240,255,0.12), rgba(0,240,255,0.05));
+      color:var(--cyan);
+      border:1px solid rgba(0,240,255,0.2);
+      box-shadow:0 0 16px rgba(0,240,255,0.08), inset 0 1px 0 rgba(255,255,255,0.04);
+    }
+    .sb-item.active svg{opacity:1;color:var(--cyan)}
+    .sb-item.active::before{
+      content:'';position:absolute;left:0;top:20%;bottom:20%;
+      width:2px;background:var(--cyan);border-radius:2px;
+      box-shadow:0 0 8px var(--cyan);
+    }
+
+    .sb-foot{padding:12px;border-top:1px solid var(--border)}
+    .sb-status{
+      display:flex;align-items:center;gap:7px;
+      font-size:.65rem;color:var(--text2);
+      font-family:'JetBrains Mono',monospace;
+      margin-bottom:10px;
+    }
+    .sb-dot{
+      width:6px;height:6px;border-radius:50%;
+      background:var(--cyan);
+      box-shadow:0 0 6px var(--cyan);
+      animation:pulse-dot 2s ease-in-out infinite;
+    }
+    @keyframes pulse-dot{0%,100%{opacity:1;box-shadow:0 0 6px var(--cyan)}50%{opacity:.4;box-shadow:none}}
+
+    .logout-btn{
+      display:flex;align-items:center;gap:7px;
+      font-size:.72rem;color:var(--text2);
+      text-decoration:none;padding:7px 10px;
+      border-radius:8px;border:1px solid var(--border);
+      transition:all .2s;font-weight:600;
+    }
+    .logout-btn:hover{
+      color:var(--red);
+      border-color:rgba(255,42,85,.3);
+      background:rgba(255,42,85,.06);
+    }
+    .user-tag{
+      font-size:.62rem;color:var(--text2);
+      font-family:'JetBrains Mono',monospace;
+      margin-bottom:8px;padding:0 2px;
+    }
+    .user-tag span{color:var(--cyan);opacity:.8}
+
+    /* ═══════════════════════════════════════════════
+       MAIN CONTENT
+    ═══════════════════════════════════════════════ */
+    .main{
+      margin-left:var(--sw);
+      flex:1;display:flex;flex-direction:column;
+      min-height:100vh;
+      position:relative;z-index:10;
+      padding:16px 16px 16px 0;
+    }
+
+    /* ─── TOP BAR ─── */
+    .topbar{
+      display:flex;align-items:center;justify-content:space-between;
+      padding:14px 24px;
+      background:var(--glass2);
+      backdrop-filter:blur(20px) saturate(1.4);
+      -webkit-backdrop-filter:blur(20px) saturate(1.4);
+      border:1px solid var(--border);
+      border-radius:14px;
+      margin-bottom:16px;
+      box-shadow:0 4px 24px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.03);
+    }
+    .topbar-left h1{
+      font-size:1rem;font-weight:800;color:#fff;letter-spacing:-.3px;
+    }
+    .topbar-left p{
+      font-size:.65rem;color:var(--text2);margin-top:1px;
+      font-family:'JetBrains Mono',monospace;letter-spacing:.05em;
+    }
+    .topbar-right{display:flex;align-items:center;gap:10px}
+
+    /* Status pills */
+    .status-pill{
+      display:flex;align-items:center;gap:5px;
+      font-size:.62rem;font-family:'JetBrains Mono',monospace;
+      padding:5px 10px;border-radius:100px;
+      border:1px solid var(--border);
+      color:var(--text2);
+    }
+    .status-pill .dot{width:5px;height:5px;border-radius:50%}
+    .status-pill.online .dot{background:var(--green);box-shadow:0 0 5px var(--green);animation:pulse-dot 2s infinite}
+    .status-pill.online{border-color:rgba(0,255,159,.2);color:var(--green)}
+
+    .btn-scan{
+      display:flex;align-items:center;gap:7px;
+      padding:9px 18px;
+      background:linear-gradient(135deg, var(--cyan), rgba(0,200,220,0.8));
+      color:#040c1a;
+      border:none;border-radius:9px;
+      font-size:.78rem;font-weight:800;cursor:pointer;
+      text-decoration:none;font-family:'Inter',sans-serif;
+      box-shadow:0 0 20px rgba(0,240,255,0.3), 0 4px 12px rgba(0,0,0,.4);
+      transition:all .2s cubic-bezier(.4,0,.2,1);
+      letter-spacing:.02em;
+    }
+    .btn-scan:hover{
+      transform:translateY(-2px);
+      box-shadow:0 0 30px rgba(0,240,255,0.5), 0 8px 20px rgba(0,0,0,.4);
+    }
+
+    /* ─── STATS GRID ─── */
+    .stats{
+      display:grid;
+      grid-template-columns:repeat(4,1fr);
+      gap:12px;
+      margin-bottom:16px;
+    }
+    @media(max-width:1000px){.stats{grid-template-columns:repeat(2,1fr)}}
+
+    .stat-card{
+      background:var(--glass);
+      backdrop-filter:blur(20px);
+      -webkit-backdrop-filter:blur(20px);
+      border-radius:14px;
+      padding:18px 20px;
+      position:relative;overflow:hidden;
+      transition:transform .2s, box-shadow .2s;
+      cursor:default;
+    }
+    .stat-card::before{
+      content:'';position:absolute;inset:0;
+      border-radius:14px;
+      padding:1px;
+      background:linear-gradient(135deg, var(--border-color,rgba(0,240,255,0.15)) 0%, transparent 60%);
+      -webkit-mask:linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      -webkit-mask-composite:xor;mask-composite:exclude;
+      pointer-events:none;
+    }
+    .stat-card:hover{transform:translateY(-3px)}
+
+    .stat-card.c-cyan{
+      --border-color:rgba(0,240,255,0.25);
+      box-shadow:0 4px 24px rgba(0,0,0,.5), 0 0 40px rgba(0,240,255,0.05);
+    }
+    .stat-card.c-red{
+      --border-color:rgba(255,42,85,0.25);
+      box-shadow:0 4px 24px rgba(0,0,0,.5), 0 0 40px rgba(255,42,85,0.06);
+    }
+    .stat-card.c-green{
+      --border-color:rgba(0,255,159,0.2);
+      box-shadow:0 4px 24px rgba(0,0,0,.5), 0 0 40px rgba(0,255,159,0.05);
+    }
+    .stat-card.c-amber{
+      --border-color:rgba(255,176,0,0.2);
+      box-shadow:0 4px 24px rgba(0,0,0,.5), 0 0 40px rgba(255,176,0,0.05);
+    }
+    .stat-icon{
+      width:32px;height:32px;border-radius:8px;
+      display:flex;align-items:center;justify-content:center;
+      margin-bottom:14px;
+    }
+    .c-cyan .stat-icon{background:rgba(0,240,255,0.1);color:var(--cyan);box-shadow:0 0 12px rgba(0,240,255,0.15)}
+    .c-red .stat-icon{background:rgba(255,42,85,0.1);color:var(--red);box-shadow:0 0 12px rgba(255,42,85,0.15)}
+    .c-green .stat-icon{background:rgba(0,255,159,0.1);color:var(--green);box-shadow:0 0 12px rgba(0,255,159,0.15)}
+    .c-amber .stat-icon{background:rgba(255,176,0,0.1);color:var(--amber);box-shadow:0 0 12px rgba(255,176,0,0.15)}
+
+    .stat-val{
+      font-size:2.2rem;font-weight:900;
+      font-family:'JetBrains Mono',monospace;
+      line-height:1;margin-bottom:4px;
+      letter-spacing:-1px;
+    }
+    .c-cyan .stat-val{color:var(--cyan);text-shadow:0 0 20px rgba(0,240,255,0.4)}
+    .c-red .stat-val{color:var(--red);text-shadow:0 0 20px rgba(255,42,85,0.4)}
+    .c-green .stat-val{color:var(--green);text-shadow:0 0 20px rgba(0,255,159,0.4)}
+    .c-amber .stat-val{color:var(--amber);text-shadow:0 0 20px rgba(255,176,0,0.4)}
+
+    .stat-label{
+      font-size:.6rem;font-weight:700;
+      text-transform:uppercase;letter-spacing:.1em;
+      color:var(--text2);
+    }
+    .stat-sub{font-size:.65rem;color:var(--text2);margin-top:3px;opacity:.6}
+
+    /* Glow corners on cards */
+    .stat-card::after{
+      content:'';position:absolute;top:0;right:0;
+      width:60px;height:60px;
+      background:radial-gradient(circle, var(--corner-color,rgba(0,240,255,0.08)) 0%, transparent 70%);
+      pointer-events:none;
+    }
+    .c-cyan::after{--corner-color:rgba(0,240,255,0.1)}
+    .c-red::after{--corner-color:rgba(255,42,85,0.1)}
+    .c-green::after{--corner-color:rgba(0,255,159,0.08)}
+    .c-amber::after{--corner-color:rgba(255,176,0,0.08)}
+
+    /* ─── MAIN CONTENT ROW ─── */
+    .content-row{
+      display:grid;
+      grid-template-columns:280px 1fr;
+      gap:14px;
+      margin-bottom:14px;
+    }
+    @media(max-width:1100px){.content-row{grid-template-columns:1fr}}
+
+    /* ─── RADAR PANEL ─── */
+    .radar-panel{
+      background:var(--glass);
+      backdrop-filter:blur(20px);
+      -webkit-backdrop-filter:blur(20px);
+      border:1px solid var(--border2);
+      border-radius:16px;
+      padding:20px;
+      display:flex;flex-direction:column;align-items:center;
+      box-shadow:0 4px 32px rgba(0,0,0,.5), 0 0 60px rgba(0,240,255,0.04);
+    }
+    .radar-title{
+      font-size:.6rem;font-weight:700;
+      text-transform:uppercase;letter-spacing:.15em;
+      color:var(--cyan);margin-bottom:18px;
+      opacity:.8;
+    }
+    .radar-wrap{position:relative;width:200px;height:200px;margin:0 auto 18px}
+
+    /* Outer ring glow */
+    .radar-wrap::before{
+      content:'';position:absolute;
+      inset:-8px;border-radius:50%;
+      background:transparent;
+      box-shadow:0 0 40px rgba(0,240,255,0.15), inset 0 0 40px rgba(0,240,255,0.04);
+      animation:ring-pulse 3s ease-in-out infinite;
+    }
+    @keyframes ring-pulse{
+      0%,100%{box-shadow:0 0 30px rgba(0,240,255,0.1), inset 0 0 30px rgba(0,240,255,0.03)}
+      50%{box-shadow:0 0 60px rgba(0,240,255,0.2), inset 0 0 40px rgba(0,240,255,0.06)}
+    }
+
+    .radar-svg{width:200px;height:200px;position:relative;z-index:2}
+
+    /* Sweep sector */
+    .radar-sweep{
+      transform-origin:100px 100px;
+      animation:sweep 4s linear infinite;
+    }
+    @keyframes sweep{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+
+    /* Grid rings */
+    .radar-ring{fill:none;stroke:rgba(0,240,255,0.12);stroke-width:1}
+    .radar-ring-outer{stroke:rgba(0,240,255,0.2);stroke-width:1.5}
+    .radar-crosshair{stroke:rgba(0,240,255,0.08);stroke-width:1}
+
+    /* Blip dots */
+    .radar-blip{animation:blip-appear 4s ease-in-out infinite}
+    @keyframes blip-appear{0%,100%{opacity:0}50%{opacity:1}}
+
+    .radar-stats{
+      display:grid;grid-template-columns:1fr 1fr;gap:8px;width:100%;
+    }
+    .r-stat{
+      background:rgba(0,240,255,0.04);
+      border:1px solid rgba(0,240,255,0.1);
+      border-radius:8px;padding:8px 10px;
+    }
+    .r-stat-val{
+      font-size:.95rem;font-weight:800;
+      font-family:'JetBrains Mono',monospace;
+      color:var(--cyan);line-height:1;
+    }
+    .r-stat-label{font-size:.55rem;color:var(--text2);margin-top:3px;text-transform:uppercase;letter-spacing:.08em}
+
+    /* ─── SCAN HISTORY TABLE PANEL ─── */
+    .history-panel{
+      background:var(--glass);
+      backdrop-filter:blur(20px);
+      -webkit-backdrop-filter:blur(20px);
+      border:1px solid var(--border);
+      border-radius:16px;
+      overflow:hidden;
+      box-shadow:0 4px 32px rgba(0,0,0,.5);
+    }
+    .panel-head{
+      display:flex;align-items:center;justify-content:space-between;
+      padding:16px 20px;
+      border-bottom:1px solid var(--border);
+      background:rgba(0,0,0,.2);
+    }
+    .panel-title{
+      font-size:.62rem;font-weight:700;
+      text-transform:uppercase;letter-spacing:.12em;
+      color:var(--text2);
+      display:flex;align-items:center;gap:8px;
+    }
+    .panel-title::before{
+      content:'';width:6px;height:6px;border-radius:50%;
+      background:var(--cyan);box-shadow:0 0 6px var(--cyan);
+    }
+    .btn-new{
+      display:flex;align-items:center;gap:5px;
+      font-size:.68rem;font-weight:700;
+      padding:5px 12px;border-radius:7px;
+      color:var(--cyan);text-decoration:none;
+      border:1px solid rgba(0,240,255,0.2);
+      background:rgba(0,240,255,0.05);
+      transition:all .18s;
+    }
+    .btn-new:hover{background:rgba(0,240,255,0.1);box-shadow:0 0 12px rgba(0,240,255,0.15)}
 
     /* TABLE */
-    .section-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
-    .section-title{font-size:.72rem;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.09em}
-    .table-wrap{background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden}
     table{width:100%;border-collapse:collapse}
-    th{text-align:left;padding:10px 16px;font-size:.65rem;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:.07em;background:rgba(0,0,0,.3);border-bottom:1px solid var(--border)}
-    td{padding:11px 16px;font-size:.83rem;border-bottom:1px solid rgba(0,255,136,.04)}
+    th{
+      text-align:left;padding:9px 16px;
+      font-size:.58rem;font-weight:700;
+      color:var(--text2);text-transform:uppercase;
+      letter-spacing:.09em;
+      border-bottom:1px solid var(--border);
+      background:rgba(0,0,0,.15);
+    }
+    td{
+      padding:11px 16px;font-size:.8rem;
+      border-bottom:1px solid rgba(0,240,255,0.04);
+      transition:background .15s;
+    }
     tr:last-child td{border-bottom:none}
-    tr:hover td{background:rgba(0,255,136,.03)}
+    tbody tr:hover td{background:rgba(0,240,255,0.03)}
 
-    /* RISK BADGES */
-    .rb{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:100px;font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;font-family:'JetBrains Mono',monospace}
+    /* scan link */
+    .scan-link{
+      font-family:'JetBrains Mono',monospace;
+      font-size:.75rem;font-weight:600;
+      color:var(--cyan);text-decoration:none;
+      opacity:.8;transition:opacity .15s;
+    }
+    .scan-link:hover{opacity:1;text-shadow:0 0 8px rgba(0,240,255,0.4)}
+
+    /* host chip */
+    .host-chip{
+      display:inline-flex;align-items:center;gap:4px;
+      font-family:'JetBrains Mono',monospace;font-size:.7rem;
+      color:var(--text3);
+      background:rgba(0,0,0,.3);
+      padding:2px 8px;border-radius:4px;
+      border:1px solid rgba(255,255,255,0.06);
+    }
+
+    /* risk badges */
+    .rb{
+      display:inline-flex;align-items:center;gap:4px;
+      padding:3px 9px;border-radius:100px;
+      font-size:.62rem;font-weight:700;
+      text-transform:uppercase;letter-spacing:.06em;
+      font-family:'JetBrains Mono',monospace;
+    }
     .rb::before{content:'';width:5px;height:5px;border-radius:50%;flex-shrink:0}
-    .rb.infected{color:var(--danger);background:var(--dg);border:1px solid var(--db)}.rb.infected::before{background:var(--danger)}
-    .rb.suspicious{color:var(--warn);background:var(--wg);border:1px solid rgba(255,224,102,.2)}.rb.suspicious::before{background:var(--warn)}
-    .rb.clean{color:var(--accent);background:var(--ag);border:1px solid var(--ab)}.rb.clean::before{background:var(--accent)}
-    .rb.remediated{color:var(--accent);background:var(--ag);border:1px solid var(--ab)}.rb.remediated::before{background:var(--accent)}
-    .rb.error,.rb.unknown{color:var(--dim);background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08)}.rb.error::before,.rb.unknown::before{background:var(--dim)}
+    .rb.infected{
+      color:var(--red);background:var(--red-dim);
+      border:1px solid rgba(255,42,85,0.3);
+      box-shadow:0 0 8px rgba(255,42,85,0.15);
+    }
+    .rb.infected::before{background:var(--red);box-shadow:0 0 4px var(--red)}
+    .rb.suspicious{
+      color:var(--amber);background:var(--amber-dim);
+      border:1px solid rgba(255,176,0,0.3);
+      box-shadow:0 0 8px rgba(255,176,0,0.15);
+    }
+    .rb.suspicious::before{background:var(--amber);box-shadow:0 0 4px var(--amber)}
+    .rb.clean{
+      color:var(--green);background:var(--green-dim);
+      border:1px solid rgba(0,255,159,0.2);
+    }
+    .rb.clean::before{background:var(--green)}
+    .rb.remediated{
+      color:var(--cyan);background:var(--cyan-dim);
+      border:1px solid rgba(0,240,255,0.2);
+    }
+    .rb.remediated::before{background:var(--cyan)}
+    .rb.error,.rb.unknown{
+      color:var(--text2);background:rgba(255,255,255,.04);
+      border:1px solid rgba(255,255,255,.08);
+    }
+    .rb.error::before,.rb.unknown::before{background:var(--text2)}
 
-    .mono{font-family:'JetBrains Mono',monospace;font-size:.78rem}
-    .host-chip{display:inline-flex;align-items:center;gap:4px;font-family:'JetBrains Mono',monospace;font-size:.76rem;color:var(--text2);background:rgba(0,0,0,.3);padding:2px 7px;border-radius:4px;border:1px solid var(--border)}
-    .tn{font-family:'JetBrains Mono',monospace;font-weight:700}
-    .tn-z{color:var(--accent)}.tn-l{color:var(--warn)}.tn-h{color:var(--danger)}
-    .sl{color:var(--text);text-decoration:none;font-weight:600}.sl:hover{color:var(--accent)}
+    /* threat count */
+    .tc{
+      font-family:'JetBrains Mono',monospace;
+      font-weight:800;font-size:.82rem;
+    }
+    .tc-z{color:var(--green)}
+    .tc-l{color:var(--amber)}
+    .tc-h{color:var(--red);text-shadow:0 0 8px rgba(255,42,85,0.4)}
 
-    .empty-st{padding:48px 20px;text-align:center;color:var(--dim)}
-    .empty-st svg{margin:0 auto 12px;display:block;opacity:.2}
-    .empty-st h3{font-size:.92rem;color:var(--text2);margin-bottom:4px}
-    .empty-st p{font-size:.8rem}
+    .ts{font-family:'JetBrains Mono',monospace;font-size:.68rem;color:var(--text2)}
+
+    .action-link{
+      color:var(--cyan);font-size:.72rem;font-weight:600;
+      text-decoration:none;opacity:.7;transition:all .15s;
+    }
+    .action-link:hover{opacity:1;text-shadow:0 0 8px rgba(0,240,255,0.4)}
+    .del-btn{
+      background:none;border:none;cursor:pointer;
+      color:var(--text2);font-size:.8rem;padding:0 4px;
+      transition:all .15s;line-height:1;
+    }
+    .del-btn:hover{color:var(--red);text-shadow:0 0 6px rgba(255,42,85,0.4)}
+
+    /* ─── TERMINAL WIDGET ─── */
+    .terminal-panel{
+      background:var(--glass3);
+      backdrop-filter:blur(20px);
+      -webkit-backdrop-filter:blur(20px);
+      border:1px solid var(--border);
+      border-radius:16px;
+      overflow:hidden;
+      box-shadow:0 4px 32px rgba(0,0,0,.6);
+    }
+    .term-header{
+      display:flex;align-items:center;justify-content:space-between;
+      padding:10px 16px;
+      background:rgba(0,0,0,.3);
+      border-bottom:1px solid var(--border);
+    }
+    .term-dots{display:flex;gap:6px;align-items:center}
+    .tdot{width:10px;height:10px;border-radius:50%}
+    .tdot.r{background:#FF5F57;box-shadow:0 0 4px #FF5F57}
+    .tdot.y{background:#FEBC2E;box-shadow:0 0 4px #FEBC2E}
+    .tdot.g{background:#28C840;box-shadow:0 0 4px #28C840}
+    .term-label{
+      font-family:'JetBrains Mono',monospace;
+      font-size:.65rem;color:var(--text2);
+    }
+    .term-badge{
+      font-size:.55rem;font-family:'JetBrains Mono',monospace;
+      padding:2px 7px;border-radius:4px;
+      background:rgba(0,240,255,0.08);color:var(--cyan);
+      border:1px solid rgba(0,240,255,0.15);letter-spacing:.08em;
+    }
+    .term-body{
+      padding:12px 16px;
+      font-family:'JetBrains Mono',monospace;
+      font-size:.72rem;line-height:1.8;
+      height:130px;overflow-y:auto;
+      color:var(--text2);
+    }
+    .term-body::-webkit-scrollbar{width:3px}
+    .term-body::-webkit-scrollbar-thumb{background:rgba(0,240,255,0.15);border-radius:3px}
+    .tl-time{color:rgba(0,240,255,0.4)}
+    .tl-ok{color:var(--green)}
+    .tl-warn{color:var(--amber)}
+    .tl-err{color:var(--red)}
+    .tl-info{color:rgba(0,240,255,0.6)}
+    .tl-dim{color:rgba(90,122,154,0.6)}
+    .cursor{
+      display:inline-block;width:7px;height:12px;
+      background:var(--cyan);vertical-align:text-bottom;
+      animation:blink-cur .8s step-end infinite;
+    }
+    @keyframes blink-cur{0%,100%{opacity:1}50%{opacity:0}}
+
+    /* ─── EMPTY STATE ─── */
+    .empty-state{
+      padding:60px 30px;text-align:center;
+    }
+    .empty-icon{
+      width:64px;height:64px;
+      background:rgba(0,240,255,0.06);
+      border:1px solid rgba(0,240,255,0.12);
+      border-radius:16px;
+      display:flex;align-items:center;justify-content:center;
+      margin:0 auto 16px;color:var(--cyan);opacity:.5;
+    }
+    .empty-state h3{font-size:.95rem;color:var(--text3);margin-bottom:6px}
+    .empty-state p{font-size:.75rem;color:var(--text2);margin-bottom:20px}
+    .btn-start{
+      display:inline-flex;align-items:center;gap:7px;
+      padding:10px 22px;border-radius:9px;
+      background:linear-gradient(135deg, var(--cyan), rgba(0,180,200,0.8));
+      color:#040c1a;font-size:.8rem;font-weight:800;
+      text-decoration:none;
+      box-shadow:0 0 20px rgba(0,240,255,0.25);
+      transition:all .2s;
+    }
+    .btn-start:hover{transform:translateY(-2px);box-shadow:0 0 30px rgba(0,240,255,0.4)}
   </style>
 </head>
 <body>
+
+<!-- ── Void background ── -->
+<div class="void-bg">
+  <div class="orb orb1"></div>
+  <div class="orb orb2"></div>
+  <div class="orb orb3"></div>
+</div>
+<div class="grid"></div>
+
+<!-- ═══════════════════════ SIDEBAR ═══════════════════════ -->
 <aside class="sb">
-  <div class="sb-logo">
-    <div class="sb-icon">
-      <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-    </div>
-    <div class="sb-brand"><strong>RootSentry</strong><span>detection engine</span></div>
-  </div>
-  <nav class="sb-nav">
-    <div class="sb-section">Main</div>
-    <a href="/" class="sb-item active">
-      <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
-      Dashboard
-    </a>
-    <a href="/scan" class="sb-item">
-      <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" d="m21 21-4.35-4.35"/></svg>
-      New Scan
-    </a>
-    <a href="/analytics" class="sb-item">
-      <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M3 3v18h18"/><path stroke-linecap="round" d="M7 16l4-4 4 4 4-6"/></svg>
-      Analytics
-    </a>
-    <a href="/schedules" class="sb-item">
-      <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path stroke-linecap="round" d="M16 2v4M8 2v4M3 10h18"/><circle cx="12" cy="16" r="2"/></svg>
-      Schedules
-    </a>
-    <div class="sb-section">System</div>
-    <a href="/logs" class="sb-item">
-      <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M4 6h16M4 12h16M4 18h10"/></svg>
-      Logs
-    </a>
-  </nav>
-  <div class="sb-foot">
-    <div class="sb-status"><span class="sb-dot"></span>Engine online</div>
-    <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
-      <div style="font-size:.66rem;color:var(--dim);margin-bottom:6px;font-family:'JetBrains Mono',monospace">
-        Signed in as <span style="color:var(--text2)">{{ session.get('username','admin') }}</span>
+  <div class="sb-inner">
+    <div class="sb-logo">
+      <div class="sb-icon">
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          <path stroke-linecap="round" d="m9 12 2 2 4-4"/>
+        </svg>
       </div>
-      <a href="/logout" style="display:flex;align-items:center;gap:7px;font-size:.76rem;color:var(--dim);text-decoration:none;padding:5px 8px;border-radius:6px;border:1px solid var(--border);transition:all .15s;font-weight:600" onmouseover="this.style.color='var(--danger)';this.style.borderColor='rgba(255,79,79,.3)'" onmouseout="this.style.color='var(--dim)';this.style.borderColor='var(--border)'">
-        <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+      <div class="sb-brand">
+        <strong>RootSentry</strong>
+        <span>DETECTION ENGINE</span>
+      </div>
+    </div>
+
+    <nav class="sb-nav">
+      <div class="sb-section">Command Center</div>
+      <a href="/" class="sb-item active">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/>
+          <rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>
+        </svg>
+        Dashboard
+      </a>
+      <a href="/scan" class="sb-item">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <circle cx="11" cy="11" r="8"/><path stroke-linecap="round" d="m21 21-4.35-4.35"/>
+        </svg>
+        New Scan
+      </a>
+      <a href="/analytics" class="sb-item">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" d="M3 3v18h18"/><path stroke-linecap="round" d="M7 16l4-4 4 4 4-6"/>
+        </svg>
+        Analytics
+      </a>
+      <a href="/schedules" class="sb-item">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <rect x="3" y="4" width="18" height="18" rx="2"/>
+          <path stroke-linecap="round" d="M16 2v4M8 2v4M3 10h18"/><circle cx="12" cy="16" r="2"/>
+        </svg>
+        Schedules
+      </a>
+      <div class="sb-section">System</div>
+      <a href="/logs" class="sb-item">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" d="M4 6h16M4 12h16M4 18h10"/>
+        </svg>
+        Live Logs
+      </a>
+      <a href="/report/{{ scans[0].get('_id', scans[0].get('id','')) if scans else '#' }}" class="sb-item" {% if not scans %}style="opacity:.4;pointer-events:none"{% endif %}>
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <path stroke-linecap="round" d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/>
+        </svg>
+        Last Report
+      </a>
+    </nav>
+
+    <div class="sb-foot">
+      <div class="sb-status">
+        <span class="sb-dot"></span>
+        ENGINE ONLINE
+      </div>
+      <div class="user-tag">OPERATOR: <span>{{ session.get('username','admin') }}</span></div>
+      <a href="/logout" class="logout-btn">
+        <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>
+        </svg>
         Sign Out
       </a>
     </div>
   </div>
 </aside>
 
+<!-- ═══════════════════════ MAIN ═══════════════════════ -->
 <div class="main">
-  <header class="topbar">
-    <div>
-      <div class="topbar-title">Security Dashboard</div>
-      <div class="topbar-sub">RootSentry — Linux rootkit detection &amp; remediation</div>
+
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <div class="topbar-left">
+      <h1>Security Command Center</h1>
+      <p>ROOTSENTRY · LINUX ROOTKIT DETECTION &amp; REMEDIATION ENGINE</p>
     </div>
-    <a href="/scan" class="btn btn-green">
-      <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" d="m21 21-4.35-4.35"/></svg>
-      Scan Now
-    </a>
-  </header>
-
-  <div class="content">
-    {% set total = scans|length %}
-    {% set infected_count = scans|selectattr('risk_level','equalto','infected')|list|length %}
-    {% set suspicious_count = scans|selectattr('risk_level','equalto','suspicious')|list|length %}
-    {% set clean_count = scans|selectattr('risk_level','equalto','clean')|list|length %}
-    {% set ns = namespace(threats=0) %}
-    {% for s in scans %}{% set ns.threats = ns.threats + s.get('total_threats',0) %}{% endfor %}
-
-    <div class="stats">
-      <div class="sc sc-v">
-        <div class="sc-icon"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path stroke-linecap="round" d="M12 8v4l3 3"/></svg></div>
-        <div class="sc-val">{{ total }}</div>
-        <div class="sc-label">Total Scans</div>
-        <div class="sc-sub">All time</div>
+    <div class="topbar-right">
+      <div class="status-pill online">
+        <span class="dot"></span>
+        SYS NOMINAL
       </div>
-      <div class="sc sc-r">
-        <div class="sc-icon"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0zM12 9v4m0 4h.01"/></svg></div>
-        <div class="sc-val" style="color:var(--danger)">{{ ns.threats }}</div>
-        <div class="sc-label">Threats Found</div>
-        <div class="sc-sub">{{ infected_count }} infected</div>
+      <div class="status-pill">
+        <span class="dot" style="background:var(--amber)"></span>
+        LKM WATCH
       </div>
-      <div class="sc sc-g">
-        <div class="sc-icon"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
-        <div class="sc-val">{{ clean_count }}</div>
-        <div class="sc-label">Clean Systems</div>
-        <div class="sc-sub">No threats</div>
-      </div>
-      <div class="sc sc-y">
-        <div class="sc-icon"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path stroke-linecap="round" d="m9 12 2 2 4-4"/></svg></div>
-        <div class="sc-val" style="color:var(--warn)">{{ suspicious_count }}</div>
-        <div class="sc-label">Suspicious</div>
-        <div class="sc-sub">Needs review</div>
-      </div>
+      <a href="/scan" class="btn-scan">
+        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+          <circle cx="11" cy="11" r="8"/><path stroke-linecap="round" d="m21 21-4.35-4.35"/>
+        </svg>
+        SCAN NOW
+      </a>
     </div>
+  </div>
 
-    <div class="section-hdr">
-      <div class="section-title">Scan History</div>
-      <a href="/scan" class="btn btn-ghost" style="padding:5px 10px;font-size:.74rem">+ New Scan</a>
+  <!-- STATS -->
+  {% set total = scans|length %}
+  {% set infected_count = scans|selectattr('risk_level','equalto','infected')|list|length %}
+  {% set suspicious_count = scans|selectattr('risk_level','equalto','suspicious')|list|length %}
+  {% set clean_count = scans|selectattr('risk_level','equalto','clean')|list|length %}
+  {% set ns = namespace(threats=0) %}
+  {% for s in scans %}{% set ns.threats = ns.threats + s.get('total_threats',0) %}{% endfor %}
+
+  <div class="stats">
+    <div class="stat-card c-cyan">
+      <div class="stat-icon">
+        <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="10"/><path stroke-linecap="round" d="M12 8v4l3 3"/>
+        </svg>
+      </div>
+      <div class="stat-val">{{ total }}</div>
+      <div class="stat-label">Total Scans</div>
+      <div class="stat-sub">All time</div>
     </div>
 
-    <div class="table-wrap">
+    <div class="stat-card c-red">
+      <div class="stat-icon">
+        <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0zM12 9v4m0 4h.01"/>
+        </svg>
+      </div>
+      <div class="stat-val">{{ ns.threats }}</div>
+      <div class="stat-label">Threats Detected</div>
+      <div class="stat-sub">{{ infected_count }} confirmed infected</div>
+    </div>
+
+    <div class="stat-card c-green">
+      <div class="stat-icon">
+        <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          <path stroke-linecap="round" d="m9 12 2 2 4-4"/>
+        </svg>
+      </div>
+      <div class="stat-val">{{ clean_count }}</div>
+      <div class="stat-label">Clean Systems</div>
+      <div class="stat-sub">No active threats</div>
+    </div>
+
+    <div class="stat-card c-amber">
+      <div class="stat-icon">
+        <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="10"/><path stroke-linecap="round" d="M12 8v4m0 4h.01"/>
+        </svg>
+      </div>
+      <div class="stat-val">{{ suspicious_count }}</div>
+      <div class="stat-label">Suspicious</div>
+      <div class="stat-sub">Requires review</div>
+    </div>
+  </div>
+
+  <!-- CONTENT ROW: Radar + Table -->
+  <div class="content-row">
+
+    <!-- RADAR PANEL -->
+    <div class="radar-panel">
+      <div class="radar-title">⬡ LKM SCAN MONITOR</div>
+
+      <div class="radar-wrap">
+        <svg class="radar-svg" viewBox="0 0 200 200">
+          <!-- Grid rings -->
+          <circle cx="100" cy="100" r="90" class="radar-ring-outer"/>
+          <circle cx="100" cy="100" r="66" class="radar-ring"/>
+          <circle cx="100" cy="100" r="44" class="radar-ring"/>
+          <circle cx="100" cy="100" r="22" class="radar-ring"/>
+          <!-- Crosshairs -->
+          <line x1="10" y1="100" x2="190" y2="100" class="radar-crosshair"/>
+          <line x1="100" y1="10" x2="100" y2="190" class="radar-crosshair"/>
+          <line x1="36" y1="36" x2="164" y2="164" class="radar-crosshair" opacity=".4"/>
+          <line x1="164" y1="36" x2="36" y2="164" class="radar-crosshair" opacity=".4"/>
+
+          <!-- Sweep sector (rotating) -->
+          <g class="radar-sweep">
+            <defs>
+              <radialGradient id="sweep-grad" cx="100" cy="100" r="90" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stop-color="#00F0FF" stop-opacity="0.25"/>
+                <stop offset="100%" stop-color="#00F0FF" stop-opacity="0"/>
+              </radialGradient>
+            </defs>
+            <path d="M100,100 L100,10 A90,90 0 0,1 190,100 Z" fill="url(#sweep-grad)"/>
+            <line x1="100" y1="100" x2="100" y2="10" stroke="#00F0FF" stroke-width="1.5" opacity=".8"/>
+          </g>
+
+          <!-- Threat blips based on data -->
+          {% if infected_count > 0 %}
+          <circle cx="145" cy="68" r="4" fill="#FF2A55" opacity=".9" style="animation:blip-appear 2s ease-in-out infinite"/>
+          <circle cx="145" cy="68" r="8" fill="none" stroke="#FF2A55" stroke-width="1" opacity=".4" style="animation:blip-appear 2s ease-in-out infinite .3s"/>
+          {% endif %}
+          {% if suspicious_count > 0 %}
+          <circle cx="70" cy="130" r="3.5" fill="#FFB000" opacity=".9" style="animation:blip-appear 3s ease-in-out infinite 1s"/>
+          <circle cx="70" cy="130" r="7" fill="none" stroke="#FFB000" stroke-width="1" opacity=".4" style="animation:blip-appear 3s ease-in-out infinite 1.3s"/>
+          {% endif %}
+          <!-- Static decorative blip -->
+          <circle cx="120" cy="155" r="2.5" fill="#00F0FF" opacity=".5" style="animation:blip-appear 4s ease-in-out infinite 2s"/>
+
+          <!-- Center hub -->
+          <circle cx="100" cy="100" r="6" fill="#00F0FF" opacity=".9"/>
+          <circle cx="100" cy="100" r="12" fill="none" stroke="#00F0FF" stroke-width="1" opacity=".4"/>
+          <circle cx="100" cy="100" r="3" fill="#fff"/>
+        </svg>
+      </div>
+
+      <div class="radar-stats">
+        <div class="r-stat">
+          <div class="r-stat-val" style="color:var(--red)">{{ infected_count }}</div>
+          <div class="r-stat-label">Infected</div>
+        </div>
+        <div class="r-stat">
+          <div class="r-stat-val" style="color:var(--amber)">{{ suspicious_count }}</div>
+          <div class="r-stat-label">Suspicious</div>
+        </div>
+        <div class="r-stat">
+          <div class="r-stat-val" style="color:var(--green)">{{ clean_count }}</div>
+          <div class="r-stat-label">Clean</div>
+        </div>
+        <div class="r-stat">
+          <div class="r-stat-val">{{ total }}</div>
+          <div class="r-stat-label">Total</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SCAN HISTORY TABLE -->
+    <div class="history-panel">
+      <div class="panel-head">
+        <span class="panel-title">Scan History</span>
+        <a href="/scan" class="btn-new">
+          <svg width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+            <path stroke-linecap="round" d="M12 5v14M5 12h14"/>
+          </svg>
+          New Scan
+        </a>
+      </div>
+
       {% if scans %}
       <table>
         <thead>
           <tr>
-            <th>Scan ID</th><th>Target</th><th>Risk</th><th>Threats</th><th>Time</th><th>Remediated</th><th></th>
+            <th>Scan ID</th>
+            <th>Target</th>
+            <th>Risk Level</th>
+            <th>Threats</th>
+            <th>Timestamp</th>
+            <th>Remediated</th>
+            <th style="text-align:right">Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -210,46 +915,123 @@
           {% set risk = s.get('risk_level','unknown') %}
           {% set tc = s.get('total_threats',0) %}
           <tr data-scan="{{ sid }}">
-            <td><a href="/scan/{{ sid }}" class="sl mono">#{{ sid }}</a></td>
-            <td><span class="host-chip">{{ s.get('host','localhost') }}</span></td>
-            <td><span class="rb {{ risk }}">{{ risk }}</span></td>
-            <td><span class="tn {% if tc==0 %}tn-z{% elif tc<=2 %}tn-l{% else %}tn-h{% endif %}">{{ tc }}</span></td>
-            <td class="mono" style="color:var(--text2);font-size:.73rem">{{ s.get('timestamp','—') }}</td>
-            <td>{% if s.get('remediation') %}<span style="color:var(--accent);font-size:.76rem;font-weight:700">✔ Yes</span>{% else %}<span style="color:var(--dim);font-size:.76rem">—</span>{% endif %}</td>
+            <td>
+              <a href="/scan/{{ sid }}" class="scan-link">#{{ sid }}</a>
+            </td>
+            <td>
+              <span class="host-chip">{{ s.get('host','localhost') }}</span>
+            </td>
+            <td>
+              <span class="rb {{ risk }}">{{ risk }}</span>
+            </td>
+            <td>
+              <span class="tc {% if tc==0 %}tc-z{% elif tc<=2 %}tc-l{% else %}tc-h{% endif %}">{{ tc }}</span>
+            </td>
+            <td class="ts">{{ s.get('timestamp','—')[:16] }}</td>
+            <td>
+              {% if s.get('remediation') %}
+              <span style="color:var(--green);font-size:.72rem;font-weight:700">✔ Yes</span>
+              {% else %}
+              <span style="color:var(--text2);font-size:.72rem">—</span>
+              {% endif %}
+            </td>
             <td style="text-align:right;white-space:nowrap">
-              <a href="/scan/{{ sid }}" style="color:var(--accent);font-size:.78rem;text-decoration:none;font-weight:600">View →</a>
+              <a href="/scan/{{ sid }}" class="action-link">View →</a>
               &nbsp;
-              <button onclick="deleteScan('{{ sid }}')" title="Delete" style="background:none;border:none;cursor:pointer;color:var(--dim);font-size:.85rem;padding:0 2px;vertical-align:middle" onmouseover="this.style.color='var(--danger)'" onmouseout="this.style.color='var(--dim)'">✕</button>
+              <button onclick="deleteScan('{{ sid }}')" class="del-btn" title="Delete">✕</button>
             </td>
           </tr>
           {% endfor %}
         </tbody>
       </table>
       {% else %}
-      <div class="empty-st">
-        <svg width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-        <h3>No scans yet</h3>
-        <p>Run your first scan to start monitoring systems.</p>
-        <a href="/scan" class="btn btn-green" style="margin-top:16px;display:inline-flex">Start First Scan</a>
+      <div class="empty-state">
+        <div class="empty-icon">
+          <svg width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+            <path stroke-linecap="round" d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          </svg>
+        </div>
+        <h3>No scans recorded</h3>
+        <p>Run your first scan to start monitoring Linux systems for rootkits and kernel tampering.</p>
+        <a href="/scan" class="btn-start">
+          <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+            <circle cx="11" cy="11" r="8"/><path stroke-linecap="round" d="m21 21-4.35-4.35"/>
+          </svg>
+          Launch First Scan
+        </a>
       </div>
       {% endif %}
     </div>
   </div>
-</div>
+
+  <!-- TERMINAL WIDGET -->
+  <div class="terminal-panel">
+    <div class="term-header">
+      <div class="term-dots">
+        <span class="tdot r"></span>
+        <span class="tdot y"></span>
+        <span class="tdot g"></span>
+      </div>
+      <span class="term-label">rootsentry@engine:~$ · live feed</span>
+      <span class="term-badge">REAL-TIME</span>
+    </div>
+    <div class="term-body" id="term-body">
+      <span class="tl-time">[BOOT]</span> <span class="tl-ok">RootSentry detection engine initialized</span><br/>
+      <span class="tl-time">[SYS] </span> <span class="tl-info">Modules loaded: process_scanner · syscall_inspector · fs_checker · net_analyzer</span><br/>
+      <span class="tl-time">[LKM] </span> <span class="tl-dim">Scanning /proc/modules for known rootkit signatures...</span><br/>
+      {% if infected_count > 0 %}
+      <span class="tl-time">[CRIT]</span> <span class="tl-err">⚠ {{ infected_count }} INFECTED system(s) detected — immediate action required</span><br/>
+      {% endif %}
+      {% if suspicious_count > 0 %}
+      <span class="tl-time">[WARN]</span> <span class="tl-warn">{{ suspicious_count }} suspicious hook(s) flagged — review recommended</span><br/>
+      {% endif %}
+      {% if scans %}
+      <span class="tl-time">[SCAN]</span> <span class="tl-info">Last scan: #{{ scans[0].get('_id', scans[0].get('id','?')) }} · target={{ scans[0].get('host','localhost') }} · risk={{ scans[0].get('risk_level','?') }}</span><br/>
+      {% endif %}
+      <span class="tl-time">[SYS] </span> <span class="tl-dim">APScheduler running · {{ scans|length }} scan records in store · ready</span><br/>
+      <span class="tl-time">[IDLE]</span> <span class="tl-info">Awaiting command</span> <span class="cursor"></span>
+    </div>
+  </div>
+
+</div><!-- .main -->
 
 <script>
+/* Blip animation keyframes injected */
+const style = document.createElement('style');
+style.textContent = `
+  @keyframes blip-appear {
+    0%,100%{opacity:0}
+    30%,70%{opacity:1}
+  }
+`;
+document.head.appendChild(style);
+
+/* Delete scan */
 function deleteScan(id) {
-  if (!confirm('Delete scan #' + id + '?')) return;
+  if (!confirm('Delete scan #' + id + '?\nThis cannot be undone.')) return;
   fetch('/scan/' + id, {method:'DELETE'})
-    .then(r=>r.json())
-    .then(d=>{
-      if(d.status==='deleted'){
-        const row=document.querySelector(`tr[data-scan="${id}"]`);
-        if(row){row.style.opacity='0';row.style.transition='opacity .3s';setTimeout(()=>row.remove(),300);}
-        else window.location.reload();
-      } else alert('Error: '+d.error);
-    }).catch(e=>alert('Error: '+e));
+    .then(r => r.json())
+    .then(d => {
+      if (d.status === 'deleted') {
+        const row = document.querySelector(`tr[data-scan="${id}"]`);
+        if (row) {
+          row.style.transition = 'all .3s';
+          row.style.opacity = '0';
+          row.style.transform = 'translateX(-8px)';
+          setTimeout(() => row.remove(), 300);
+        } else {
+          window.location.reload();
+        }
+      } else {
+        alert('Error: ' + d.error);
+      }
+    })
+    .catch(e => alert('Error: ' + e));
 }
+
+/* Auto-scroll terminal to bottom */
+const term = document.getElementById('term-body');
+if (term) term.scrollTop = term.scrollHeight;
 </script>
 </body>
 </html>

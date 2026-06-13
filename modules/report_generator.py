@@ -286,119 +286,115 @@ def generate_html_report(scan_result: dict,
     ioc_html         = _ioc_section(scan_result)
     mitre_html       = _mitre_section(scan_result)
     remediation_html = _remediation_section(remediation_result)
+    num_modules      = len(scan_result.get("modules", {}))
 
-    return f"""<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>RootSentry Report — {_e(host)}</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono&display=swap" rel="stylesheet"/>
-  <style>
-    *, *::before, *::after {{ box-sizing: border-box; margin: 0; padding: 0; }}
-    body {{
-      font-family: 'Inter', sans-serif;
-      background: #0f172a;
-      color: #e2e8f0;
-      padding: 40px 20px;
-      min-height: 100vh;
-    }}
-    .container {{ max-width: 960px; margin: 0 auto; }}
-    .header {{
-      background: linear-gradient(135deg, #1e293b, #0f172a);
-      border: 1px solid #334155;
-      border-radius: 16px;
-      padding: 36px;
-      margin-bottom: 32px;
-      text-align: center;
-    }}
-    .logo {{ font-size: 2.4rem; font-weight: 800; color: #f1f5f9; letter-spacing: -1px; }}
-    .logo span {{ color: {risk_col}; }}
-    .meta {{ color: #64748b; font-size: 0.9rem; margin-top: 8px; }}
-    .risk-badge {{
-      display: inline-block; margin-top: 20px;
-      padding: 10px 32px;
-      background: {risk_col}22; border: 2px solid {risk_col};
-      border-radius: 100px; color: {risk_col};
-      font-size: 1.4rem; font-weight: 800;
-      letter-spacing: 2px; text-transform: uppercase;
-    }}
-    .stats-row {{
-      display: grid; grid-template-columns: repeat(4, 1fr);
-      gap: 16px; margin-bottom: 32px;
-    }}
-    .stat-card {{
-      background: #1e293b; border-radius: 12px;
-      padding: 20px; text-align: center; border: 1px solid #334155;
-    }}
-    .stat-card .value {{
-      font-size: 2rem; font-weight: 800; color: #f1f5f9;
-      font-family: 'JetBrains Mono', monospace;
-    }}
-    .stat-card .label {{ color: #64748b; font-size: 0.82rem; margin-top: 4px; }}
-    h2 {{ color: #f1f5f9; margin-bottom: 20px; font-size: 1.2rem; }}
-    table {{ table-layout: fixed; }}
-    table td, table th {{ padding: 8px 12px; word-break: break-all; }}
-    tr:nth-child(even) {{ background: #0f172a44; }}
-    .footer {{ text-align: center; color: #475569; font-size: 0.82rem; margin-top: 40px; }}
-  </style>
-</head>
-<body>
-<div class="container">
-  <div class="header">
-    <div class="logo">Root<span>Sentry</span></div>
-    <div class="meta">Target: <b>{_e(host)}</b> &nbsp;|&nbsp; Scanned: {_e(scan_ts)} &nbsp;|&nbsp; Report: {generated}</div>
-    <div class="risk-badge">{_e(risk)}</div>
-  </div>
+    # Build CSS separately to avoid curly-brace conflicts with f-string
+    css = (
+        "*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }\n"
+        "body { font-family: 'Inter', sans-serif; background: #0f172a; color: #e2e8f0;"
+        "  padding: 40px 20px; min-height: 100vh; }\n"
+        ".container { max-width: 960px; margin: 0 auto; }\n"
+        ".header { background: linear-gradient(135deg, #1e293b, #0f172a);"
+        "  border: 1px solid #334155; border-radius: 16px; padding: 36px;"
+        "  margin-bottom: 32px; text-align: center; }\n"
+        f".logo {{ font-size: 2.4rem; font-weight: 800; color: #f1f5f9; letter-spacing: -1px; }}\n"
+        f".logo span {{ color: {risk_col}; }}\n"
+        ".meta { color: #64748b; font-size: 0.9rem; margin-top: 8px; }\n"
+        f".risk-badge {{ display: inline-block; margin-top: 20px; padding: 10px 32px;"
+        f"  background: {risk_col}22; border: 2px solid {risk_col};"
+        "  border-radius: 100px; font-size: 1.4rem; font-weight: 800;"
+        f"  color: {risk_col}; letter-spacing: 2px; text-transform: uppercase; }}\n"
+        ".stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 32px; }\n"
+        ".stat-card { background: #1e293b; border-radius: 12px; padding: 20px;"
+        "  text-align: center; border: 1px solid #334155; }\n"
+        ".stat-card .value { font-size: 2rem; font-weight: 800; color: #f1f5f9;"
+        "  font-family: 'JetBrains Mono', monospace; }\n"
+        ".stat-card .label { color: #64748b; font-size: 0.82rem; margin-top: 4px; }\n"
+        "h2 { color: #f1f5f9; margin-bottom: 20px; font-size: 1.2rem; }\n"
+        "table { width: 100%; border-collapse: collapse; table-layout: fixed; }\n"
+        "table td, table th { padding: 8px 12px; word-break: break-all; }\n"
+        "tr:nth-child(even) { background: #0f172a44; }\n"
+        ".footer { text-align: center; color: #475569; font-size: 0.82rem; margin-top: 40px; }\n"
+    )
 
-  <div class="stats-row">
-    <div class="stat-card">
-      <div class="value" style="color:{risk_col}">{total}</div>
-      <div class="label">Total Threats</div>
-    </div>
-    <div class="stat-card">
-      <div class="value">{score}</div>
-      <div class="label">Anomaly Score</div>
-    </div>
-    <div class="stat-card">
-      <div class="value">{len(scan_result.get("modules", {}))}</div>
-      <div class="label">Modules Run</div>
-    </div>
-    <div class="stat-card">
-      <div class="value" style="font-size:1.1rem;padding-top:6px">{_e(host)}</div>
-      <div class="label">Target Host</div>
-    </div>
-  </div>
-
-  {ioc_html}
-
-  {mitre_html}
-
-  <h2>Detection Results</h2>
-  {modules_html}
-
-  {remediation_html}
-
-  <div class="footer">
-    Generated by RootSentry &mdash; Linux Rootkit Detection &amp; Remediation Tool
-  </div>
-</div>
-</body>
-</html>"""
+    return (
+        '<!DOCTYPE html>\n'
+        '<html lang="en">\n'
+        '<head>\n'
+        '  <meta charset="UTF-8" />\n'
+        '  <meta name="viewport" content="width=device-width, initial-scale=1.0" />\n'
+        f'  <title>RootSentry Report — {_e(host)}</title>\n'
+        '  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700'
+        '&family=JetBrains+Mono&display=swap" rel="stylesheet"/>\n'
+        f'  <style>\n{css}  </style>\n'
+        '</head>\n'
+        '<body>\n'
+        '<div class="container">\n'
+        '  <div class="header">\n'
+        '    <div class="logo">Root<span>Sentry</span></div>\n'
+        f'    <div class="meta">Target: <b>{_e(host)}</b> &nbsp;|&nbsp; '
+        f'Scanned: {_e(scan_ts)} &nbsp;|&nbsp; Report: {generated}</div>\n'
+        f'    <div class="risk-badge">{_e(risk)}</div>\n'
+        '  </div>\n'
+        '  <div class="stats-row">\n'
+        f'    <div class="stat-card"><div class="value" style="color:{risk_col}">{total}</div>'
+        '<div class="label">Total Threats</div></div>\n'
+        f'    <div class="stat-card"><div class="value">{score}</div>'
+        '<div class="label">Anomaly Score</div></div>\n'
+        f'    <div class="stat-card"><div class="value">{num_modules}</div>'
+        '<div class="label">Modules Run</div></div>\n'
+        f'    <div class="stat-card"><div class="value" style="font-size:1.1rem;padding-top:6px">{_e(host)}</div>'
+        '<div class="label">Target Host</div></div>\n'
+        '  </div>\n'
+        f'  {ioc_html}\n'
+        f'  {mitre_html}\n'
+        '  <h2>Detection Results</h2>\n'
+        f'  {modules_html}\n'
+        f'  {remediation_html}\n'
+        '  <div class="footer">Generated by RootSentry &mdash; '
+        'Linux Rootkit Detection &amp; Remediation Tool</div>\n'
+        '</div>\n'
+        '</body>\n'
+        '</html>'
+    )
 
 
 # ── Save helpers ──────────────────────────────────────────────────────────────
 
 def save_report(scan_result: dict,
-                remediation_result: Optional[dict] = None,
-                fmt: str = "html",
-                output_dir: str = REPORTS_DIR) -> str:
+               remediation_result: Optional[dict] = None,
+               fmt: str = "html",
+               output_dir: str = REPORTS_DIR,
+               scan_id: Optional[str] = None) -> str:
+    """Generate and save a report. Returns the file path.
+    
+    Uses a stable filename based on scan_id when provided, so repeated
+    calls for the same scan don't fill disk with duplicate files.
+    """
     os.makedirs(output_dir, exist_ok=True)
-    host = scan_result.get("host", "localhost").replace(".", "_")
-    ts   = datetime.datetime.utcnow().strftime("%Y%m%d_%H%M%S")
-    stem = f"report_{host}_{ts}"
 
-    html_content = generate_html_report(scan_result, remediation_result)
+    try:
+        html_content = generate_html_report(scan_result, remediation_result)
+    except Exception as exc:
+        # Fallback: return a minimal error report so the route never 500s
+        host = scan_result.get("host", "localhost")
+        html_content = (
+            '<!DOCTYPE html><html><head><meta charset="UTF-8"/>'
+            f'<title>RootSentry Report Error</title></head><body>'
+            f'<h1 style="color:#ef4444">Report generation failed</h1>'
+            f'<p>Host: {_e(host)}</p>'
+            f'<pre style="color:#94a3b8">{_e(str(exc))}</pre>'
+            '</body></html>'
+        )
+
+    # Use stable name if scan_id given; otherwise timestamp-based
+    if scan_id:
+        safe_id = scan_id.replace("/", "_").replace("\\", "_")
+        stem = f"report_{safe_id}"
+    else:
+        host = scan_result.get("host", "localhost").replace(".", "_")
+        ts   = datetime.datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+        stem = f"report_{host}_{ts}"
 
     if fmt == "pdf":
         try:
@@ -407,6 +403,8 @@ def save_report(scan_result: dict,
             WP_HTML(string=html_content).write_pdf(pdf_path)
             return pdf_path
         except ImportError:
+            fmt = "html"   # fallback to HTML if weasyprint not installed
+        except Exception:
             fmt = "html"
 
     html_path = os.path.join(output_dir, f"{stem}.html")
