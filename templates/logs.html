@@ -3,183 +3,194 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-  <title>RootSentry — Logs</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+  <title>RootSentry — Live Logs</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
   <style>
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
     :root{
-      --bg:#080f08;--card:#0d180d;--card2:#101e10;
-      --border:#1a3a1a;--text:#d0ecd0;--text2:#7aaa7a;--dim:#3a5c3a;
-      --accent:#00ff88;--ag:rgba(0,255,136,.08);--ab:rgba(0,255,136,.25);
-      --danger:#ff4f4f;--warn:#ffe066;--sw:210px;
+      --void:#050914;--glass:rgba(8,14,30,0.72);--glass2:rgba(12,20,42,0.6);--glass3:rgba(4,8,18,0.92);
+      --border:rgba(0,240,255,0.08);--border2:rgba(0,240,255,0.18);--border3:rgba(0,240,255,0.35);
+      --cyan:#00F0FF;--amber:#FFB000;--red:#FF2A55;--green:#00FF9F;
+      --text:#C8D8E8;--text2:#5A7A9A;--text3:#7A9AB8;--sw:230px;
     }
-    body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex}
+    html{height:100%}
+    body{font-family:'Inter',sans-serif;background:var(--void);color:var(--text);min-height:100vh;display:flex;overflow-x:hidden}
+    .void-bg{position:fixed;inset:0;z-index:0;pointer-events:none}
+    .void-bg::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 70% 40% at 50% 0%,rgba(0,240,255,0.03) 0%,transparent 60%)}
+    .void-bg::after{content:'';position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,240,255,0.004) 2px,rgba(0,240,255,0.004) 4px)}
+    .grid{position:fixed;inset:0;z-index:0;pointer-events:none;background-image:linear-gradient(rgba(0,240,255,0.02) 1px,transparent 1px),linear-gradient(90deg,rgba(0,240,255,0.02) 1px,transparent 1px);background-size:60px 60px;mask-image:radial-gradient(ellipse 80% 80% at 50% 50%,black 30%,transparent 100%)}
 
-    .sb{width:var(--sw);min-height:100vh;background:#060e06;border-right:1px solid var(--border);position:fixed;top:0;left:0;display:flex;flex-direction:column;z-index:100}
-    .sb-logo{padding:20px 16px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border)}
-    .sb-icon{width:34px;height:34px;background:var(--ag);border:1px solid var(--ab);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-    .sb-icon svg{color:var(--accent)}
-    .sb-brand strong{display:block;font-size:.9rem;font-weight:800;color:#fff}
-    .sb-brand span{font-size:.64rem;color:var(--accent);font-family:'JetBrains Mono',monospace}
-    .sb-nav{flex:1;padding:12px 8px}
-    .sb-section{font-size:.6rem;font-weight:700;color:var(--dim);letter-spacing:.12em;text-transform:uppercase;padding:10px 10px 5px}
-    .sb-item{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:7px;color:var(--text2);text-decoration:none;font-size:.82rem;font-weight:500;transition:all .15s;margin-bottom:2px}
-    .sb-item svg{flex-shrink:0;opacity:.5}
-    .sb-item:hover{background:var(--ag);color:var(--text)}
-    .sb-item.active{background:var(--ag);color:var(--accent);border:1px solid var(--ab)}
-    .sb-item.active svg{opacity:1;color:var(--accent)}
-    .sb-foot{padding:12px 14px 16px;border-top:1px solid var(--border)}
-    .sb-status{display:flex;align-items:center;gap:7px;font-size:.73rem;color:var(--text2)}
-    .sb-dot{width:6px;height:6px;border-radius:50%;background:var(--accent);animation:blink 2s ease-in-out infinite}
-    @keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+    /* SIDEBAR */
+    .sb{width:var(--sw);min-height:100vh;position:fixed;top:0;left:0;z-index:200;display:flex;flex-direction:column;padding:16px 12px}
+    .sb-inner{flex:1;display:flex;flex-direction:column;background:var(--glass);backdrop-filter:blur(24px) saturate(1.5);-webkit-backdrop-filter:blur(24px) saturate(1.5);border:1px solid var(--border2);border-radius:18px;box-shadow:0 0 0 1px rgba(0,240,255,0.04),0 8px 32px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,0.04);overflow:hidden}
+    .sb-logo{padding:20px 16px 16px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border)}
+    .sb-icon{width:36px;height:36px;background:linear-gradient(135deg,rgba(0,240,255,0.15),rgba(0,240,255,0.05));border:1px solid var(--border3);border-radius:10px;display:flex;align-items:center;justify-content:center;color:var(--cyan);box-shadow:0 0 16px rgba(0,240,255,0.2);flex-shrink:0}
+    .sb-brand strong{display:block;font-size:.88rem;font-weight:800;color:#fff}.sb-brand span{font-size:.58rem;color:var(--cyan);font-family:'JetBrains Mono',monospace;letter-spacing:.12em;opacity:.7}
+    .sb-nav{flex:1;padding:10px 8px}.sb-nav::-webkit-scrollbar{display:none}
+    .sb-section{font-size:.55rem;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.15em;padding:12px 10px 5px}
+    .sb-item{display:flex;align-items:center;gap:9px;padding:9px 10px;border-radius:10px;color:var(--text2);text-decoration:none;font-size:.78rem;font-weight:500;transition:all .2s;margin-bottom:2px;position:relative}
+    .sb-item svg{flex-shrink:0;opacity:.5;transition:all .2s}
+    .sb-item:hover{background:rgba(0,240,255,0.07);color:var(--cyan);transform:translateX(2px)}.sb-item:hover svg,.sb-item.active svg{opacity:1;color:var(--cyan)}
+    .sb-item.active{background:linear-gradient(135deg,rgba(0,240,255,0.12),rgba(0,240,255,0.05));color:var(--cyan);border:1px solid rgba(0,240,255,0.2)}
+    .sb-item.active::before{content:'';position:absolute;left:0;top:20%;bottom:20%;width:2px;background:var(--cyan);border-radius:2px;box-shadow:0 0 8px var(--cyan)}
+    .sb-foot{padding:12px;border-top:1px solid var(--border)}
+    .sb-status{display:flex;align-items:center;gap:7px;font-size:.65rem;color:var(--text2);font-family:'JetBrains Mono',monospace;margin-bottom:10px}
+    .sb-dot{width:6px;height:6px;border-radius:50%;background:var(--cyan);box-shadow:0 0 6px var(--cyan);animation:pd 2s ease-in-out infinite}
+    @keyframes pd{0%,100%{opacity:1}50%{opacity:.4}}
+    .user-tag{font-size:.62rem;color:var(--text2);font-family:'JetBrains Mono',monospace;margin-bottom:8px}.user-tag span{color:var(--cyan);opacity:.8}
+    .logout-btn{display:flex;align-items:center;gap:7px;font-size:.72rem;color:var(--text2);text-decoration:none;padding:7px 10px;border-radius:8px;border:1px solid var(--border);transition:all .2s;font-weight:600}
+    .logout-btn:hover{color:var(--red);border-color:rgba(255,42,85,.3);background:rgba(255,42,85,.06)}
 
-    .main{margin-left:var(--sw);flex:1;display:flex;flex-direction:column;min-height:100vh}
-    .topbar{height:56px;background:#060e06;border-bottom:1px solid var(--border);padding:0 28px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50}
-    .topbar-title{font-size:.95rem;font-weight:700;color:#fff}
-    .topbar-sub{font-size:.7rem;color:var(--dim);margin-top:1px}
-    .btn{display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:6px;font-size:.76rem;font-weight:600;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--text2);text-decoration:none;transition:all .15s;font-family:'Inter',sans-serif}
-    .btn:hover{background:var(--card2);color:var(--text)}
-    .content{padding:20px 28px;flex:1;display:flex;flex-direction:column;max-width:1100px;width:100%;margin:0 auto}
+    /* MAIN */
+    .main{margin-left:var(--sw);flex:1;display:flex;flex-direction:column;min-height:100vh;position:relative;z-index:10;padding:16px 16px 16px 0}
+    .topbar{display:flex;align-items:center;justify-content:space-between;padding:14px 24px;background:var(--glass2);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid var(--border);border-radius:14px;margin-bottom:16px;box-shadow:0 4px 24px rgba(0,0,0,.5)}
+    .topbar h1{font-size:1rem;font-weight:800;color:#fff}.topbar p{font-size:.62rem;color:var(--text2);font-family:'JetBrains Mono',monospace;margin-top:2px}
+    .btn-refresh{display:flex;align-items:center;gap:6px;font-size:.72rem;font-weight:700;padding:7px 14px;border-radius:8px;color:var(--cyan);text-decoration:none;border:1px solid rgba(0,240,255,0.2);background:rgba(0,240,255,0.05);transition:all .18s}
+    .btn-refresh:hover{background:rgba(0,240,255,0.1);box-shadow:0 0 12px rgba(0,240,255,0.15)}
 
-    .toolbar{display:flex;gap:8px;align-items:center;margin-bottom:12px}
+    /* TOOLBAR */
+    .toolbar{display:flex;gap:10px;align-items:center;margin-bottom:12px}
     .search-wrap{flex:1;position:relative}
-    .search-wrap svg{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--dim);pointer-events:none}
-    input[type=text]{width:100%;padding:7px 10px 7px 32px;background:#040a04;border:1px solid var(--border);border-radius:7px;color:var(--text);font-family:'JetBrains Mono',monospace;font-size:.81rem;outline:none}
-    input[type=text]:focus{border-color:var(--accent)}
-    input::placeholder{color:var(--dim)}
-    .count-tag{font-size:.73rem;color:var(--text2);background:var(--card);border:1px solid var(--border);border-radius:6px;padding:5px 10px;white-space:nowrap}
+    .search-wrap svg{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--text2);pointer-events:none}
+    .search-wrap input{width:100%;padding:9px 12px 9px 34px;background:var(--glass);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid var(--border);border-radius:9px;color:var(--text);font-family:'JetBrains Mono',monospace;font-size:.8rem;outline:none;transition:border-color .2s,box-shadow .2s}
+    .search-wrap input:focus{border-color:var(--cyan);box-shadow:0 0 0 3px rgba(0,240,255,0.08)}
+    .search-wrap input::placeholder{color:var(--text2);opacity:.5}
+    .count-tag{font-size:.65rem;color:var(--text2);background:var(--glass);backdrop-filter:blur(12px);border:1px solid var(--border);border-radius:7px;padding:6px 12px;white-space:nowrap;font-family:'JetBrains Mono',monospace}
 
-    .filter-tabs{display:flex;gap:5px;margin-bottom:10px}
-    .ftab{padding:3px 10px;border-radius:100px;font-size:.7rem;font-weight:700;border:1px solid var(--border);cursor:pointer;color:var(--dim);background:transparent;font-family:'Inter',sans-serif;transition:all .15s}
-    .ftab.a-all{color:var(--text);border-color:var(--border2);background:var(--card2)}
-    .ftab.a-err{color:var(--danger);border-color:rgba(255,79,79,.3);background:rgba(255,79,79,.06)}
-    .ftab.a-warn{color:var(--warn);border-color:rgba(255,224,102,.3);background:rgba(255,224,102,.06)}
-    .ftab.a-info{color:var(--accent);border-color:var(--ab);background:var(--ag)}
+    /* FILTER TABS */
+    .filter-tabs{display:flex;gap:5px;margin-bottom:12px}
+    .ftab{padding:4px 12px;border-radius:100px;font-size:.65rem;font-weight:700;border:1px solid var(--border);cursor:pointer;color:var(--text2);background:transparent;font-family:'JetBrains Mono',monospace;transition:all .18s;letter-spacing:.04em}
+    .ftab.a-all{color:var(--text);border-color:var(--border2);background:rgba(0,240,255,0.05)}
+    .ftab.a-err{color:var(--red);border-color:rgba(255,42,85,0.3);background:rgba(255,42,85,0.07)}
+    .ftab.a-warn{color:var(--amber);border-color:rgba(255,176,0,0.3);background:rgba(255,176,0,0.07)}
+    .ftab.a-info{color:var(--cyan);border-color:rgba(0,240,255,0.25);background:rgba(0,240,255,0.07)}
 
-    .terminal{background:#040a04;border:1px solid var(--border);border-radius:10px;overflow:hidden;flex:1;display:flex;flex-direction:column}
-    .term-header{padding:9px 16px;background:rgba(0,0,0,.4);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:7px}
-    .tdot{width:9px;height:9px;border-radius:50%}
-    .tdot.r{background:#ff5f57}.tdot.y{background:#febc2e}.tdot.g{background:var(--accent)}
-    .term-label{font-family:'JetBrains Mono',monospace;font-size:.7rem;color:var(--dim);margin-left:4px}
-    .term-body{padding:12px 16px;font-family:'JetBrains Mono',monospace;font-size:.78rem;line-height:1.7;overflow-y:auto;flex:1;max-height:calc(100vh - 230px)}
+    /* TERMINAL */
+    .terminal{background:var(--glass3);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid var(--border2);border-radius:14px;overflow:hidden;flex:1;display:flex;flex-direction:column;box-shadow:0 4px 32px rgba(0,0,0,.6),0 0 40px rgba(0,240,255,0.03)}
+    .term-header{padding:10px 16px;background:rgba(0,0,0,0.4);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+    .term-dots{display:flex;gap:6px;align-items:center}
+    .tdot{width:10px;height:10px;border-radius:50%}
+    .tdot.r{background:#FF5F57;box-shadow:0 0 4px #FF5F57}
+    .tdot.y{background:#FEBC2E;box-shadow:0 0 4px #FEBC2E}
+    .tdot.g{background:#28C840;box-shadow:0 0 4px #28C840}
+    .term-label{font-family:'JetBrains Mono',monospace;font-size:.65rem;color:var(--text2)}
+    .term-badge{font-size:.55rem;font-family:'JetBrains Mono',monospace;padding:2px 8px;border-radius:4px;background:rgba(0,240,255,0.08);color:var(--cyan);border:1px solid rgba(0,240,255,0.15);letter-spacing:.08em}
+    .term-body{padding:12px 16px;font-family:'JetBrains Mono',monospace;font-size:.76rem;line-height:1.75;overflow-y:auto;flex:1;max-height:calc(100vh - 260px)}
     .term-body::-webkit-scrollbar{width:4px}
-    .term-body::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+    .term-body::-webkit-scrollbar-thumb{background:rgba(0,240,255,0.12);border-radius:3px}
 
-    .ll{display:flex;gap:10px;padding:1px 0;border-radius:3px}
-    .ll:hover{background:rgba(255,255,255,.02)}
-    .ll-ts{color:#1e3a1e;min-width:175px;flex-shrink:0;font-size:.73rem}
-    .ll-lvl{min-width:36px;font-weight:700;font-size:.72rem;text-align:right;flex-shrink:0}
-    .ll-msg{color:#4a6e4a;word-break:break-all;font-size:.77rem}
-    .lvl-INFO{color:#3a8a4a}.lvl-WARNING,.lvl-WARN{color:var(--warn)}.lvl-ERROR{color:var(--danger)}.lvl-DEBUG{color:#2a4a2a}
-    .line-err .ll-msg{color:#b06060}.line-warn .ll-msg{color:#a09040}
+    /* LOG LINES */
+    .ll{display:flex;gap:12px;padding:2px 4px;border-radius:4px;transition:background .1s}
+    .ll:hover{background:rgba(0,240,255,0.03)}
+    .ll-ts{color:rgba(0,240,255,0.25);min-width:170px;flex-shrink:0;font-size:.7rem}
+    .ll-lvl{min-width:40px;font-weight:700;font-size:.7rem;text-align:right;flex-shrink:0}
+    .ll-msg{color:rgba(90,122,154,0.7);word-break:break-all;font-size:.74rem}
+    .lvl-INFO{color:var(--green)}.lvl-WARNING,.lvl-WARN{color:var(--amber)}.lvl-ERROR{color:var(--red)}.lvl-DEBUG{color:rgba(0,240,255,0.3)}
+    .line-err .ll-msg{color:rgba(255,42,85,0.7)}.line-warn .ll-msg{color:rgba(255,176,0,0.7)}
     .ll:hover .ll-msg{color:var(--text2)}
-    .empty-term{padding:48px;text-align:center;color:var(--dim)}
+    .empty-term{padding:60px;text-align:center;color:var(--text2);font-size:.8rem;opacity:.5}
 
-    .refresh-bar{height:2px;background:var(--accent);position:fixed;bottom:0;left:var(--sw);right:0;transform-origin:left;animation:countdown 10s linear infinite}
+    /* REFRESH BAR */
+    .refresh-bar{height:2px;background:linear-gradient(90deg,var(--cyan),rgba(0,240,255,0.3));position:fixed;bottom:0;left:var(--sw);right:0;transform-origin:left;animation:countdown 10s linear infinite;box-shadow:0 0 8px rgba(0,240,255,0.4)}
     @keyframes countdown{from{transform:scaleX(1)}to{transform:scaleX(0)}}
   </style>
 </head>
 <body>
+<div class="void-bg"></div>
+<div class="grid"></div>
+
 <aside class="sb">
-  <div class="sb-logo">
-    <div class="sb-icon"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
-    <div class="sb-brand"><strong>RootSentry</strong><span>detection engine</span></div>
-  </div>
-  <nav class="sb-nav">
-    <div class="sb-section">Main</div>
-    <a href="/" class="sb-item"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>Dashboard</a>
-    <a href="/scan" class="sb-item"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" d="m21 21-4.35-4.35"/></svg>New Scan</a>
-    <a href="/analytics" class="sb-item">
-      <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M3 3v18h18"/><path stroke-linecap="round" d="M7 16l4-4 4 4 4-6"/></svg>
-      Analytics
-    </a>
-    <a href="/schedules" class="sb-item">
-      <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path stroke-linecap="round" d="M16 2v4M8 2v4M3 10h18"/><circle cx="12" cy="16" r="2"/></svg>
-      Schedules
-    </a>
-    <div class="sb-section">System</div>
-    <a href="/logs" class="sb-item active"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M4 6h16M4 12h16M4 18h10"/></svg>Logs</a>
-  </nav>
-  <div class="sb-foot">
-    <div class="sb-status"><span class="sb-dot"></span>Engine online</div>
-    <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
-      <div style="font-size:.66rem;color:var(--dim);margin-bottom:6px;font-family:'JetBrains Mono',monospace">
-        Signed in as <span style="color:var(--text2)">{{ session.get('username','admin') }}</span>
-      </div>
-      <a href="/logout" style="display:flex;align-items:center;gap:7px;font-size:.76rem;color:var(--dim);text-decoration:none;padding:5px 8px;border-radius:6px;border:1px solid var(--border);transition:all .15s;font-weight:600" onmouseover="this.style.color='var(--danger)';this.style.borderColor='rgba(255,79,79,.3)'" onmouseout="this.style.color='var(--dim)';this.style.borderColor='var(--border)'">
-        <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>
-        Sign Out
-      </a>
+  <div class="sb-inner">
+    <div class="sb-logo">
+      <div class="sb-icon"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path stroke-linecap="round" d="m9 12 2 2 4-4"/></svg></div>
+      <div class="sb-brand"><strong>RootSentry</strong><span>DETECTION ENGINE</span></div>
+    </div>
+    <nav class="sb-nav">
+      <div class="sb-section">Command Center</div>
+      <a href="/" class="sb-item"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>Dashboard</a>
+      <a href="/scan" class="sb-item"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" d="m21 21-4.35-4.35"/></svg>New Scan</a>
+      <a href="/analytics" class="sb-item"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M3 3v18h18"/><path stroke-linecap="round" d="M7 16l4-4 4 4 4-6"/></svg>Analytics</a>
+      <a href="/schedules" class="sb-item"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path stroke-linecap="round" d="M16 2v4M8 2v4M3 10h18"/><circle cx="12" cy="16" r="2"/></svg>Schedules</a>
+      <div class="sb-section">System</div>
+      <a href="/logs" class="sb-item active"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M4 6h16M4 12h16M4 18h10"/></svg>Live Logs</a>
+    </nav>
+    <div class="sb-foot">
+      <div class="sb-status"><span class="sb-dot"></span>ENGINE ONLINE</div>
+      <div class="user-tag">OPERATOR: <span>{{ session.get('username','admin') }}</span></div>
+      <a href="/logout" class="logout-btn"><svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>Sign Out</a>
     </div>
   </div>
 </aside>
 
 <div class="main">
-  <header class="topbar">
-    <div><div class="topbar-title">System Logs</div><div class="topbar-sub">Live engine output — auto-refreshes every 10s</div></div>
-    <a href="/logs" class="btn"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" d="M1 4v6h6M23 20v-6h-6"/><path stroke-linecap="round" d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10M23 14l-4.64 4.36A9 9 0 0 1 3.51 15"/></svg>Refresh</a>
-  </header>
-  <div class="content">
-    <div class="toolbar">
-      <div class="search-wrap">
-        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" d="m21 21-4.35-4.35"/></svg>
-        <input type="text" id="filter-input" placeholder="Filter logs…" oninput="filterLogs()"/>
-      </div>
-      <div class="count-tag">Showing <strong id="visible-count">{{ lines|length }}</strong> of {{ lines|length }}</div>
+  <div class="topbar">
+    <div><h1>Live Engine Logs</h1><p>ROOTSENTRY · REAL-TIME SYSTEM OUTPUT · AUTO-REFRESHES EVERY 10s</p></div>
+    <a href="/logs" class="btn-refresh"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" d="M1 4v6h6M23 20v-6h-6"/><path stroke-linecap="round" d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10M23 14l-4.64 4.36A9 9 0 0 1 3.51 15"/></svg>Refresh</a>
+  </div>
+
+  <div class="toolbar">
+    <div class="search-wrap">
+      <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" d="m21 21-4.35-4.35"/></svg>
+      <input type="text" id="filter-input" placeholder="Filter log entries…" oninput="filterLogs()"/>
     </div>
-    <div class="filter-tabs">
-      <button class="ftab a-all" onclick="setLevel('all',this)">All</button>
-      <button class="ftab" onclick="setLevel('ERROR',this)" style="color:var(--danger)">Errors</button>
-      <button class="ftab" onclick="setLevel('WARN',this)" style="color:var(--warn)">Warnings</button>
-      <button class="ftab" onclick="setLevel('INFO',this)" style="color:var(--accent)">Info</button>
+    <div class="count-tag">Showing <strong id="visible-count">{{ lines|length }}</strong> / {{ lines|length }}</div>
+  </div>
+
+  <div class="filter-tabs">
+    <button class="ftab a-all" onclick="setLevel('all',this)">All</button>
+    <button class="ftab" onclick="setLevel('ERROR',this)" style="color:var(--red)">Errors</button>
+    <button class="ftab" onclick="setLevel('WARN',this)" style="color:var(--amber)">Warnings</button>
+    <button class="ftab" onclick="setLevel('INFO',this)" style="color:var(--cyan)">Info</button>
+  </div>
+
+  <div class="terminal">
+    <div class="term-header">
+      <div class="term-dots"><span class="tdot r"></span><span class="tdot y"></span><span class="tdot g"></span></div>
+      <span class="term-label">rootsentry.log · engine output</span>
+      <span class="term-badge">LIVE</span>
     </div>
-    <div class="terminal">
-      <div class="term-header">
-        <span class="tdot r"></span><span class="tdot y"></span><span class="tdot g"></span>
-        <span class="term-label">rootsentry.log</span>
-      </div>
-      <div class="term-body" id="terminal">
-        {% if lines %}
-          {% for line in lines %}
-          {% if '[ERROR]' in line %}{% set lvl='ERROR' %}{% set lcls='line-err' %}
-          {% elif '[WARNING]' in line or '[WARN]' in line %}{% set lvl='WARN' %}{% set lcls='line-warn' %}
-          {% elif '[DEBUG]' in line %}{% set lvl='DEBUG' %}{% set lcls='line-dbg' %}
-          {% else %}{% set lvl='INFO' %}{% set lcls='line-info' %}{% endif %}
-          {% set parts = line.strip().split(' ') %}
-          {% set ts = (parts[0]~' '~parts[1]) if parts|length >= 2 else '' %}
-          {% set msg = line.strip()[ts|length:]|trim if ts else line.strip() %}
-          <div class="ll {{ lcls }}" data-raw="{{ line.strip()|lower }}" data-level="{{ lvl }}">
-            <span class="ll-ts">{{ ts }}</span>
-            <span class="ll-lvl lvl-{{ lvl }}">{{ lvl }}</span>
-            <span class="ll-msg">{{ msg }}</span>
-          </div>
-          {% endfor %}
-        {% else %}
-        <div class="empty-term">No log entries yet. Run a scan to generate logs.</div>
-        {% endif %}
-      </div>
+    <div class="term-body" id="terminal">
+      {% if lines %}
+        {% for line in lines %}
+        {% if '[ERROR]' in line %}{% set lvl='ERROR' %}{% set lcls='line-err' %}
+        {% elif '[WARNING]' in line or '[WARN]' in line %}{% set lvl='WARN' %}{% set lcls='line-warn' %}
+        {% elif '[DEBUG]' in line %}{% set lvl='DEBUG' %}{% set lcls='line-dbg' %}
+        {% else %}{% set lvl='INFO' %}{% set lcls='line-info' %}{% endif %}
+        {% set parts = line.strip().split(' ') %}
+        {% set ts = (parts[0]~' '~parts[1]) if parts|length >= 2 else '' %}
+        {% set msg = line.strip()[ts|length:]|trim if ts else line.strip() %}
+        <div class="ll {{ lcls }}" data-raw="{{ line.strip()|lower }}" data-level="{{ lvl }}">
+          <span class="ll-ts">{{ ts }}</span>
+          <span class="ll-lvl lvl-{{ lvl }}">{{ lvl }}</span>
+          <span class="ll-msg">{{ msg }}</span>
+        </div>
+        {% endfor %}
+      {% else %}
+      <div class="empty-term">No log entries yet — run a scan to generate output.</div>
+      {% endif %}
     </div>
   </div>
 </div>
+
 <div class="refresh-bar"></div>
+
 <script>
 const term=document.getElementById('terminal');
-const count=document.getElementById('visible-count');
+const countEl=document.getElementById('visible-count');
 let activeLvl='all';
-term.scrollTop=term.scrollHeight;
+if(term)term.scrollTop=term.scrollHeight;
 function filterLogs(){
   const q=document.getElementById('filter-input').value.toLowerCase();
   let v=0;
   term.querySelectorAll('.ll').forEach(l=>{
     const show=(!q||(l.dataset.raw||'').includes(q))&&(activeLvl==='all'||(l.dataset.level||'').includes(activeLvl));
-    l.style.display=show?'':'none';
-    if(show)v++;
+    l.style.display=show?'':'none';if(show)v++;
   });
-  count.textContent=v;
+  countEl.textContent=v;
 }
 function setLevel(lvl,btn){
   activeLvl=lvl;
-  document.querySelectorAll('.ftab').forEach(b=>{b.className='ftab';});
+  document.querySelectorAll('.ftab').forEach(b=>b.className='ftab');
   btn.classList.add(lvl==='all'?'a-all':lvl==='ERROR'?'a-err':lvl==='WARN'?'a-warn':'a-info');
   filterLogs();
 }

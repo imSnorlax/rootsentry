@@ -3,97 +3,304 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-  <title>RootSentry — Scanning…</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet"/>
+  <title>RootSentry — Scan In Progress…</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
   <style>
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-    :root{--bg:#080f08;--card:#0d180d;--border:#1a3a1a;--accent:#00ff88;--ag:rgba(0,255,136,.08);--ab:rgba(0,255,136,.25);--text:#d0ecd0;--dim:#3a5c3a;}
-    body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
-    .box{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:36px 40px;max-width:420px;width:100%;text-align:center}
-    .radar{width:72px;height:72px;margin:0 auto 24px;position:relative}
-    .radar-ring{position:absolute;inset:0;border-radius:50%;border:1.5px solid var(--ab);animation:expand 2s ease-out infinite}
-    .radar-ring:nth-child(2){animation-delay:.5s;opacity:.5}
-    .radar-ring:nth-child(3){animation-delay:1s;opacity:.25}
-    @keyframes expand{0%{transform:scale(.4);opacity:1}100%{transform:scale(1.8);opacity:0}}
-    .radar-core{position:absolute;inset:12px;border-radius:50%;background:var(--ag);border:1.5px solid var(--ab);display:flex;align-items:center;justify-content:center}
-    .radar-core svg{color:var(--accent)}
-    h2{font-size:1.2rem;font-weight:800;color:#fff;margin-bottom:6px}
-    .sub{color:var(--dim);font-size:.83rem;line-height:1.5;margin-bottom:22px}
-    .p-track{height:2px;background:var(--border);border-radius:2px;overflow:hidden;margin-bottom:20px}
-    .p-fill{height:100%;background:var(--accent);border-radius:2px;animation:pfill 2.5s ease-in-out infinite alternate}
-    @keyframes pfill{from{width:6%}to{width:94%}}
-    .steps{text-align:left;margin-bottom:20px}
-    .step{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(0,255,136,.04);font-size:.82rem;color:var(--dim)}
+    :root{
+      --void:#050914;--glass:rgba(8,14,30,0.82);
+      --border:rgba(0,240,255,0.1);--border2:rgba(0,240,255,0.22);
+      --cyan:#00F0FF;--amber:#FFB000;--red:#FF2A55;--green:#00FF9F;
+      --text:#C8D8E8;--text2:#5A7A9A;--text3:#7A9AB8;
+    }
+    html,body{height:100%}
+    body{
+      font-family:'Inter',sans-serif;
+      background:var(--void);color:var(--text);
+      min-height:100vh;display:flex;align-items:center;
+      justify-content:center;padding:20px;overflow:hidden;
+      position:relative;
+    }
+
+    /* VOID BG */
+    .void-bg{position:fixed;inset:0;z-index:0;pointer-events:none}
+    .void-bg::before{
+      content:'';position:absolute;inset:0;
+      background:
+        radial-gradient(ellipse 70% 70% at 50% 50%,rgba(0,240,255,0.06) 0%,transparent 60%),
+        radial-gradient(ellipse 50% 50% at 30% 20%,rgba(0,240,255,0.03) 0%,transparent 60%);
+    }
+    .void-bg::after{
+      content:'';position:absolute;inset:0;
+      background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,240,255,0.004) 2px,rgba(0,240,255,0.004) 4px);
+    }
+    .grid{
+      position:fixed;inset:0;z-index:0;pointer-events:none;
+      background-image:linear-gradient(rgba(0,240,255,0.025) 1px,transparent 1px),linear-gradient(90deg,rgba(0,240,255,0.025) 1px,transparent 1px);
+      background-size:50px 50px;
+      mask-image:radial-gradient(ellipse 60% 60% at 50% 50%,black 20%,transparent 100%);
+    }
+
+    /* CARD */
+    .card{
+      position:relative;z-index:1;
+      background:var(--glass);
+      backdrop-filter:blur(28px) saturate(1.4);
+      -webkit-backdrop-filter:blur(28px) saturate(1.4);
+      border:1px solid var(--border2);
+      border-radius:22px;
+      padding:44px 40px 36px;
+      max-width:460px;width:100%;
+      text-align:center;
+      box-shadow:
+        0 0 0 1px rgba(0,240,255,0.04),
+        0 32px 80px rgba(0,0,0,.8),
+        0 0 80px rgba(0,240,255,0.06),
+        inset 0 1px 0 rgba(255,255,255,0.04);
+    }
+
+    /* RADAR ANIMATION */
+    .radar-wrap{
+      position:relative;width:120px;height:120px;margin:0 auto 32px;
+    }
+    /* Pulsing rings */
+    .ring{
+      position:absolute;inset:0;border-radius:50%;
+      border:1.5px solid rgba(0,240,255,0.3);
+      animation:expand-ring 2.4s ease-out infinite;
+    }
+    .ring:nth-child(2){animation-delay:.6s;opacity:.6}
+    .ring:nth-child(3){animation-delay:1.2s;opacity:.35}
+    .ring:nth-child(4){animation-delay:1.8s;opacity:.15}
+    @keyframes expand-ring{
+      0%{transform:scale(.35);opacity:.8}
+      100%{transform:scale(2);opacity:0}
+    }
+    /* Core */
+    .radar-core{
+      position:absolute;top:50%;left:50%;
+      transform:translate(-50%,-50%);
+      width:56px;height:56px;
+      background:linear-gradient(135deg,rgba(0,240,255,0.15),rgba(0,240,255,0.06));
+      border:1.5px solid var(--border2);
+      border-radius:50%;
+      display:flex;align-items:center;justify-content:center;
+      color:var(--cyan);
+      box-shadow:0 0 30px rgba(0,240,255,0.25),inset 0 1px 0 rgba(255,255,255,0.06);
+    }
+    /* Rotating sweep */
+    .radar-sweep{
+      position:absolute;inset:0;border-radius:50%;
+      background:conic-gradient(from 0deg, rgba(0,240,255,0.2) 0deg, transparent 60deg);
+      animation:rotate-sweep 3s linear infinite;
+    }
+    @keyframes rotate-sweep{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+
+    /* TITLE */
+    h1{font-size:1.35rem;font-weight:900;color:#fff;letter-spacing:-.5px;margin-bottom:8px}
+    .sub{font-size:.78rem;color:var(--text2);line-height:1.65;margin-bottom:26px}
+
+    /* PROGRESS BAR */
+    .p-track{
+      height:3px;background:rgba(0,240,255,0.08);
+      border-radius:3px;overflow:hidden;margin-bottom:26px;
+    }
+    .p-fill{
+      height:100%;
+      background:linear-gradient(90deg,var(--cyan),rgba(0,240,255,0.5));
+      border-radius:3px;
+      box-shadow:0 0 8px rgba(0,240,255,0.4);
+      animation:pfill 2.5s ease-in-out infinite alternate;
+    }
+    @keyframes pfill{from{width:4%}to{width:94%}}
+
+    /* STEPS */
+    .steps{text-align:left;margin-bottom:26px}
+    .step{
+      display:flex;align-items:center;gap:12px;
+      padding:9px 0;
+      border-bottom:1px solid rgba(0,240,255,0.04);
+      font-size:.78rem;color:var(--text2);
+      transition:color .3s;
+    }
     .step:last-child{border-bottom:none}
-    .step.done{color:var(--accent)}
-    .step.active{color:var(--text)}
-    .step-num{width:22px;height:22px;border-radius:50%;border:1.5px solid currentColor;display:flex;align-items:center;justify-content:center;font-size:.68rem;font-weight:700;flex-shrink:0}
-    .step.active .step-num{border-color:var(--accent);animation:pulse 1.5s ease-in-out infinite}
-    @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(0,255,136,.4)}50%{box-shadow:0 0 0 5px rgba(0,255,136,0)}}
-    .spin{width:10px;height:10px;border:1.5px solid rgba(0,255,136,.2);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;display:inline-block}
+    .step.done{color:var(--green)}
+    .step.active{color:var(--cyan)}
+    .step.error{color:var(--red)}
+    .step-icon{
+      width:24px;height:24px;border-radius:50%;
+      border:1.5px solid rgba(90,122,154,0.3);
+      display:flex;align-items:center;justify-content:center;
+      font-size:.7rem;font-weight:700;flex-shrink:0;
+      transition:all .3s;font-family:'JetBrains Mono',monospace;
+    }
+    .step.done .step-icon{
+      border-color:var(--green);color:var(--green);
+      background:rgba(0,255,159,0.08);
+      box-shadow:0 0 8px rgba(0,255,159,0.2);
+    }
+    .step.active .step-icon{
+      border-color:var(--cyan);
+      box-shadow:0 0 10px rgba(0,240,255,0.3);
+      background:rgba(0,240,255,0.08);
+    }
+    .step.error .step-icon{
+      border-color:var(--red);color:var(--red);
+      background:rgba(255,42,85,0.08);
+    }
+    .spin{
+      width:10px;height:10px;
+      border:1.5px solid rgba(0,240,255,0.2);
+      border-top-color:var(--cyan);
+      border-radius:50%;
+      animation:spin .7s linear infinite;
+      display:inline-block;
+    }
     @keyframes spin{to{transform:rotate(360deg)}}
-    .id-tag{font-family:'JetBrains Mono',monospace;font-size:.72rem;color:var(--dim);background:rgba(0,0,0,.3);border:1px solid var(--border);border-radius:6px;padding:5px 12px;display:inline-block}
+
+    /* SCAN ID TAG */
+    .id-row{
+      display:flex;align-items:center;justify-content:center;gap:8px;
+      font-family:'JetBrains Mono',monospace;font-size:.68rem;
+      color:var(--text2);
+      background:rgba(0,0,0,0.3);
+      border:1px solid var(--border);
+      border-radius:8px;
+      padding:7px 14px;
+    }
+    .id-row .label{color:var(--text2);opacity:.6}
+    .id-row .val{color:var(--cyan)}
+
+    /* Error state */
+    .error-msg{
+      display:none;
+      background:rgba(255,42,85,0.08);border:1px solid rgba(255,42,85,0.25);
+      border-radius:9px;padding:12px 16px;margin-bottom:20px;
+      font-size:.78rem;color:var(--red);line-height:1.5;
+    }
   </style>
-  <script>
-    const scanId = "{{ scan_id }}";
-    const STEPS = [
-      {step:'process_scanner',id:'s1',label:'Scanning hidden processes'},
-      {step:'syscall_inspector',id:'s2',label:'Scanning kernel hooks & modules'},
-      {step:'fs_checker',id:'s3',label:'Scanning filesystem'},
-      {step:'net_analyzer',id:'s4',label:'Scanning network sockets'},
-      {step:'aggregating',id:'s5',label:'Aggregating results'},
-    ];
-    let _last=null;
-    function render(s){
-      if(s===_last)return; _last=s;
-      let ai=STEPS.findIndex(x=>x.step===s);
-      if(ai===-1&&s!=='init')ai=STEPS.length-1;
-      STEPS.forEach((x,i)=>{
-        const el=document.getElementById(x.id);
-        if(!el)return;
-        el.className='step '+(i<ai?'done':i===ai?'active':'');
-        const num=el.querySelector('.step-num');
-        if(i<ai)num.innerHTML='✔';
-        else if(i===ai)num.innerHTML='<span class="spin"></span>';
-        else num.textContent=i+1;
-      });
-    }
-    function poll(){
-      fetch('/scan/'+scanId+'/json').then(r=>r.json()).then(d=>{
-        render(d.step||'init');
-        if(d.status==='error'){
-          document.querySelector('h2').textContent='Scan Failed';
-          document.querySelector('h2').style.color='#ff4f4f';
-          const sub=document.querySelector('.sub');
-          if(sub)sub.textContent=(d.result&&d.result.error)?d.result.error:'An error occurred.';
-          setTimeout(()=>window.location.href='/scan/'+scanId,2500);
-        } else if(d.status!=='running'){
-          STEPS.forEach(x=>{const el=document.getElementById(x.id);if(el){el.className='step done';el.querySelector('.step-num').innerHTML='✔';}});
-          setTimeout(()=>window.location.href='/scan/'+scanId,300);
-        } else {
-          setTimeout(poll,1500);
-        }
-      }).catch(()=>setTimeout(poll,2000));
-    }
-    window.onload=()=>{render('init');setTimeout(poll,800);};
-  </script>
 </head>
 <body>
-  <div class="box">
-    <div class="radar">
-      <div class="radar-ring"></div><div class="radar-ring"></div><div class="radar-ring"></div>
-      <div class="radar-core"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
+<div class="void-bg"></div>
+<div class="grid"></div>
+
+<div class="card">
+  <!-- Radar -->
+  <div class="radar-wrap">
+    <div class="ring"></div>
+    <div class="ring"></div>
+    <div class="ring"></div>
+    <div class="ring"></div>
+    <div class="radar-sweep"></div>
+    <div class="radar-core">
+      <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <path stroke-linecap="round" d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+        <path stroke-linecap="round" d="m9 12 2 2 4-4"/>
+      </svg>
     </div>
-    <h2>Scan In Progress</h2>
-    <p class="sub">Analysing the target for rootkit indicators.<br>You'll be redirected when complete.</p>
-    <div class="p-track"><div class="p-fill"></div></div>
-    <div class="steps">
-      {% for label in ['Scanning hidden processes','Scanning kernel hooks & modules','Scanning filesystem','Scanning network sockets','Aggregating results'] %}
-      {% set i = loop.index %}
-      <div class="step" id="s{{ i }}"><span class="step-num">{{ i }}</span>{{ label }}</div>
-      {% endfor %}
-    </div>
-    <div class="id-tag">Scan ID: {{ scan_id }}</div>
   </div>
+
+  <h1 id="main-title">Scan In Progress</h1>
+  <p class="sub" id="main-sub">Analysing the target system for rootkits,<br/>LKM tampering, and kernel hook anomalies.</p>
+
+  <div class="error-msg" id="error-msg"></div>
+
+  <div class="p-track"><div class="p-fill" id="p-fill"></div></div>
+
+  <div class="steps">
+    {% set step_labels = [
+      ('s1','process_scanner','Scanning hidden processes'),
+      ('s2','syscall_inspector','Scanning kernel hooks &amp; modules'),
+      ('s3','fs_checker','Scanning filesystem for artefacts'),
+      ('s4','net_analyzer','Scanning network sockets &amp; ports'),
+      ('s5','aggregating','Aggregating results &amp; scoring')
+    ] %}
+    {% for sid, skey, slabel in step_labels %}
+    <div class="step" id="{{ sid }}">
+      <span class="step-icon">{{ loop.index }}</span>
+      {{ slabel }}
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="id-row">
+    <span class="label">SCAN ID</span>
+    <span class="val">{{ scan_id }}</span>
+  </div>
+</div>
+
+<script>
+const scanId="{{ scan_id }}";
+const STEPS=[
+  {step:'process_scanner',id:'s1',label:'Scanning hidden processes'},
+  {step:'syscall_inspector',id:'s2',label:'Scanning kernel hooks & modules'},
+  {step:'fs_checker',id:'s3',label:'Scanning filesystem for artefacts'},
+  {step:'net_analyzer',id:'s4',label:'Scanning network sockets & ports'},
+  {step:'aggregating',id:'s5',label:'Aggregating results & scoring'},
+];
+let _last=null;
+
+function render(step){
+  if(step===_last)return;_last=step;
+  let ai=STEPS.findIndex(x=>x.step===step);
+  if(ai===-1&&step!=='init')ai=STEPS.length-1;
+  STEPS.forEach((x,i)=>{
+    const el=document.getElementById(x.id);
+    if(!el)return;
+    const icon=el.querySelector('.step-icon');
+    if(i<ai){
+      el.className='step done';
+      icon.innerHTML='✔';
+    } else if(i===ai){
+      el.className='step active';
+      icon.innerHTML='<span class="spin"></span>';
+    } else {
+      el.className='step';
+      icon.textContent=i+1;
+    }
+  });
+}
+
+function poll(){
+  fetch('/scan/'+scanId+'/json')
+    .then(r=>r.json())
+    .then(d=>{
+      render(d.step||'init');
+      if(d.status==='error'){
+        // Stop progress bar
+        document.getElementById('p-fill').style.animation='none';
+        document.getElementById('p-fill').style.width='100%';
+        document.getElementById('p-fill').style.background='linear-gradient(90deg,var(--red),rgba(255,42,85,0.5))';
+        document.getElementById('p-fill').style.boxShadow='0 0 8px rgba(255,42,85,0.4)';
+        document.getElementById('main-title').textContent='Scan Failed';
+        document.getElementById('main-title').style.color='var(--red)';
+        document.getElementById('main-sub').style.display='none';
+        const errBox=document.getElementById('error-msg');
+        errBox.textContent=(d.result&&d.result.error)?d.result.error:'An unexpected error occurred.';
+        errBox.style.display='block';
+        // Mark active step as error
+        STEPS.forEach(x=>{
+          const el=document.getElementById(x.id);
+          if(el&&el.classList.contains('active')){el.className='step error';el.querySelector('.step-icon').textContent='✘';}
+        });
+        setTimeout(()=>window.location.href='/scan/'+scanId,3000);
+      } else if(d.status!=='running'){
+        // Complete — flash all done
+        STEPS.forEach(x=>{const el=document.getElementById(x.id);if(el){el.className='step done';el.querySelector('.step-icon').innerHTML='✔';}});
+        document.getElementById('p-fill').style.animation='none';
+        document.getElementById('p-fill').style.width='100%';
+        document.getElementById('main-title').textContent='Scan Complete';
+        document.getElementById('main-title').style.color='var(--green)';
+        document.getElementById('main-sub').textContent='Redirecting to results…';
+        setTimeout(()=>window.location.href='/scan/'+scanId,400);
+      } else {
+        setTimeout(poll,1500);
+      }
+    })
+    .catch(()=>setTimeout(poll,2000));
+}
+
+window.onload=()=>{render('init');setTimeout(poll,800);};
+</script>
 </body>
 </html>

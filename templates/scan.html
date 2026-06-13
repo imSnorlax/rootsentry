@@ -4,153 +4,179 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
   <title>RootSentry — New Scan</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet"/>
   <style>
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
     :root{
-      --bg:#080f08;--card:#0d180d;--card2:#101e10;
-      --border:#1a3a1a;--border2:#22482a;
-      --text:#d0ecd0;--text2:#7aaa7a;--dim:#3a5c3a;
-      --accent:#00ff88;--ag:rgba(0,255,136,.08);--ab:rgba(0,255,136,.25);
-      --danger:#ff4f4f;--sw:210px;
+      --void:#050914;--glass:rgba(8,14,30,0.72);--glass2:rgba(12,20,42,0.6);--glass3:rgba(5,10,22,0.9);
+      --border:rgba(0,240,255,0.08);--border2:rgba(0,240,255,0.18);--border3:rgba(0,240,255,0.35);
+      --cyan:#00F0FF;--amber:#FFB000;--red:#FF2A55;--green:#00FF9F;
+      --text:#C8D8E8;--text2:#5A7A9A;--text3:#7A9AB8;--sw:230px;
     }
-    body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex}
+    html{height:100%}
+    body{font-family:'Inter',sans-serif;background:var(--void);color:var(--text);min-height:100vh;display:flex;overflow-x:hidden;position:relative}
+    .void-bg{position:fixed;inset:0;z-index:0;pointer-events:none}
+    .void-bg::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 70% 50% at 30% 30%,rgba(0,240,255,0.05) 0%,transparent 60%),radial-gradient(ellipse 50% 50% at 70% 70%,rgba(255,42,85,0.03) 0%,transparent 60%)}
+    .void-bg::after{content:'';position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,240,255,0.004) 2px,rgba(0,240,255,0.004) 4px)}
+    .grid{position:fixed;inset:0;z-index:0;pointer-events:none;background-image:linear-gradient(rgba(0,240,255,0.02) 1px,transparent 1px),linear-gradient(90deg,rgba(0,240,255,0.02) 1px,transparent 1px);background-size:60px 60px;mask-image:radial-gradient(ellipse 80% 80% at 50% 50%,black 30%,transparent 100%)}
 
     /* SIDEBAR */
-    .sb{width:var(--sw);min-height:100vh;background:#060e06;border-right:1px solid var(--border);position:fixed;top:0;left:0;display:flex;flex-direction:column;z-index:100}
-    .sb-logo{padding:20px 16px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border)}
-    .sb-icon{width:34px;height:34px;background:var(--ag);border:1px solid var(--ab);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-    .sb-icon svg{color:var(--accent)}
-    .sb-brand strong{display:block;font-size:.9rem;font-weight:800;color:#fff}
-    .sb-brand span{font-size:.64rem;color:var(--accent);font-family:'JetBrains Mono',monospace}
-    .sb-nav{flex:1;padding:12px 8px}
-    .sb-section{font-size:.6rem;font-weight:700;color:var(--dim);letter-spacing:.12em;text-transform:uppercase;padding:10px 10px 5px}
-    .sb-item{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:7px;color:var(--text2);text-decoration:none;font-size:.82rem;font-weight:500;transition:all .15s;margin-bottom:2px}
-    .sb-item svg{flex-shrink:0;opacity:.5;transition:opacity .15s}
-    .sb-item:hover{background:var(--ag);color:var(--text)}
-    .sb-item.active{background:var(--ag);color:var(--accent);border:1px solid var(--ab)}
-    .sb-item.active svg{opacity:1;color:var(--accent)}
-    .sb-foot{padding:12px 14px 16px;border-top:1px solid var(--border)}
-    .sb-status{display:flex;align-items:center;gap:7px;font-size:.73rem;color:var(--text2)}
-    .sb-dot{width:6px;height:6px;border-radius:50%;background:var(--accent);animation:blink 2s ease-in-out infinite}
-    @keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+    .sb{width:var(--sw);min-height:100vh;position:fixed;top:0;left:0;z-index:200;display:flex;flex-direction:column;padding:16px 12px}
+    .sb-inner{flex:1;display:flex;flex-direction:column;background:var(--glass);backdrop-filter:blur(24px) saturate(1.5);-webkit-backdrop-filter:blur(24px) saturate(1.5);border:1px solid var(--border2);border-radius:18px;box-shadow:0 0 0 1px rgba(0,240,255,0.04),0 8px 32px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,0.04);overflow:hidden}
+    .sb-logo{padding:20px 16px 16px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border)}
+    .sb-icon{width:36px;height:36px;background:linear-gradient(135deg,rgba(0,240,255,0.15),rgba(0,240,255,0.05));border:1px solid var(--border3);border-radius:10px;display:flex;align-items:center;justify-content:center;color:var(--cyan);box-shadow:0 0 16px rgba(0,240,255,0.2);flex-shrink:0}
+    .sb-brand strong{display:block;font-size:.88rem;font-weight:800;color:#fff}
+    .sb-brand span{font-size:.58rem;color:var(--cyan);font-family:'JetBrains Mono',monospace;letter-spacing:.12em;opacity:.7}
+    .sb-nav{flex:1;padding:10px 8px}.sb-nav::-webkit-scrollbar{display:none}
+    .sb-section{font-size:.55rem;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.15em;padding:12px 10px 5px}
+    .sb-item{display:flex;align-items:center;gap:9px;padding:9px 10px;border-radius:10px;color:var(--text2);text-decoration:none;font-size:.78rem;font-weight:500;transition:all .2s;margin-bottom:2px;position:relative}
+    .sb-item svg{flex-shrink:0;opacity:.5;transition:all .2s}
+    .sb-item:hover{background:rgba(0,240,255,0.07);color:var(--cyan);transform:translateX(2px)}
+    .sb-item:hover svg,.sb-item.active svg{opacity:1;color:var(--cyan)}
+    .sb-item.active{background:linear-gradient(135deg,rgba(0,240,255,0.12),rgba(0,240,255,0.05));color:var(--cyan);border:1px solid rgba(0,240,255,0.2)}
+    .sb-item.active::before{content:'';position:absolute;left:0;top:20%;bottom:20%;width:2px;background:var(--cyan);border-radius:2px;box-shadow:0 0 8px var(--cyan)}
+    .sb-foot{padding:12px;border-top:1px solid var(--border)}
+    .sb-status{display:flex;align-items:center;gap:7px;font-size:.65rem;color:var(--text2);font-family:'JetBrains Mono',monospace;margin-bottom:10px}
+    .sb-dot{width:6px;height:6px;border-radius:50%;background:var(--cyan);box-shadow:0 0 6px var(--cyan);animation:pd 2s ease-in-out infinite}
+    @keyframes pd{0%,100%{opacity:1}50%{opacity:.4}}
+    .user-tag{font-size:.62rem;color:var(--text2);font-family:'JetBrains Mono',monospace;margin-bottom:8px}
+    .user-tag span{color:var(--cyan);opacity:.8}
+    .logout-btn{display:flex;align-items:center;gap:7px;font-size:.72rem;color:var(--text2);text-decoration:none;padding:7px 10px;border-radius:8px;border:1px solid var(--border);transition:all .2s;font-weight:600}
+    .logout-btn:hover{color:var(--red);border-color:rgba(255,42,85,.3);background:rgba(255,42,85,.06)}
 
     /* MAIN */
-    .main{margin-left:var(--sw);flex:1;display:flex;flex-direction:column;min-height:100vh}
-    .topbar{height:56px;background:#060e06;border-bottom:1px solid var(--border);padding:0 28px;display:flex;align-items:center;position:sticky;top:0;z-index:50}
-    .topbar-title{font-size:.95rem;font-weight:700;color:#fff}
-    .topbar-sub{font-size:.7rem;color:var(--dim);margin-top:1px}
-    .content{flex:1;display:flex;align-items:center;justify-content:center;padding:32px 28px}
+    .main{margin-left:var(--sw);flex:1;display:flex;flex-direction:column;min-height:100vh;position:relative;z-index:10;padding:16px 16px 16px 0}
+    .topbar{display:flex;align-items:center;justify-content:space-between;padding:14px 24px;background:var(--glass2);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid var(--border);border-radius:14px;margin-bottom:16px;box-shadow:0 4px 24px rgba(0,0,0,.5)}
+    .topbar h1{font-size:1rem;font-weight:800;color:#fff}
+    .topbar p{font-size:.62rem;color:var(--text2);font-family:'JetBrains Mono',monospace;margin-top:2px}
 
-    /* FORM */
-    .form-wrap{width:100%;max-width:480px}
-    .form-heading{text-align:center;margin-bottom:22px}
-    .form-heading h1{font-size:1.35rem;font-weight:800;color:#fff;margin-bottom:4px}
-    .form-heading p{font-size:.8rem;color:var(--dim)}
-    .form-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:26px 28px}
-    .tabs{display:flex;gap:3px;background:#040a04;border-radius:8px;padding:3px;margin-bottom:20px;border:1px solid var(--border)}
-    .tab{flex:1;padding:8px;text-align:center;border-radius:6px;cursor:pointer;font-size:.82rem;font-weight:600;color:var(--dim);border:none;background:transparent;transition:all .18s;font-family:'Inter',sans-serif}
-    .tab.active{background:var(--accent);color:#080f08}
-    .remote-fields{display:none}
-    .remote-fields.show{display:block}
-    .form-group{margin-bottom:14px}
-    label{display:block;font-size:.68rem;font-weight:700;color:var(--dim);letter-spacing:.07em;text-transform:uppercase;margin-bottom:5px}
-    input[type=text],input[type=password],input[type=number]{width:100%;padding:9px 12px;background:#040a04;border:1px solid var(--border);border-radius:7px;color:var(--text);font-family:'JetBrains Mono',monospace;font-size:.85rem;outline:none;transition:border-color .18s}
-    input:focus{border-color:var(--accent)}
-    input::placeholder{color:var(--dim)}
+    .content{flex:1;display:flex;align-items:center;justify-content:center;padding:20px 0 40px}
+    .form-wrap{width:100%;max-width:500px}
+
+    /* Form heading */
+    .form-heading{text-align:center;margin-bottom:24px}
+    .form-heading h2{font-size:1.4rem;font-weight:900;color:#fff;letter-spacing:-.5px;margin-bottom:6px}
+    .form-heading p{font-size:.76rem;color:var(--text2)}
+
+    /* Card */
+    .form-card{background:var(--glass);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border:1px solid var(--border2);border-radius:18px;padding:28px 30px;box-shadow:0 0 0 1px rgba(0,240,255,0.04),0 24px 60px rgba(0,0,0,.6),0 0 60px rgba(0,240,255,0.04),inset 0 1px 0 rgba(255,255,255,0.04)}
+
+    /* Tabs */
+    .tabs{display:flex;gap:4px;background:rgba(0,0,0,0.4);border-radius:10px;padding:4px;margin-bottom:22px;border:1px solid var(--border)}
+    .tab{flex:1;padding:9px;text-align:center;border-radius:7px;cursor:pointer;font-size:.78rem;font-weight:700;color:var(--text2);border:none;background:transparent;transition:all .2s;font-family:'Inter',sans-serif;letter-spacing:.02em}
+    .tab.active{background:linear-gradient(135deg,var(--cyan),rgba(0,190,220,0.9));color:#040c1a;box-shadow:0 0 16px rgba(0,240,255,0.3)}
+
+    /* Fields */
+    .remote-fields{display:none}.remote-fields.show{display:block}
+    .form-group{margin-bottom:16px}
+    .form-label{display:block;font-size:.6rem;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px}
+    input[type=text],input[type=password],input[type=number]{
+      width:100%;padding:11px 14px;background:rgba(0,0,0,0.4);border:1px solid var(--border);
+      border-radius:9px;color:var(--text);font-family:'JetBrains Mono',monospace;font-size:.85rem;
+      outline:none;transition:border-color .2s,box-shadow .2s;
+    }
+    input:focus{border-color:var(--cyan);box-shadow:0 0 0 3px rgba(0,240,255,0.08)}
+    input::placeholder{color:var(--text2);opacity:.5}
     .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-    .info-box{background:var(--ag);border:1px solid var(--ab);border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:.78rem;color:var(--text2)}
-    .btn-scan{width:100%;padding:11px;background:var(--accent);color:#080f08;border:none;border-radius:8px;font-size:.9rem;font-weight:800;cursor:pointer;transition:all .18s;margin-top:2px;font-family:'Inter',sans-serif}
-    .btn-scan:hover{background:#00e07a}
-    .btn-scan:disabled{opacity:.5;cursor:not-allowed}
 
-    /* PROGRESS */
-    .progress-panel{display:none;margin-top:20px;padding-top:20px;border-top:1px solid var(--border)}
-    .p-bar{height:3px;background:var(--border);border-radius:2px;margin-bottom:14px;overflow:hidden}
-    .p-bar-fill{height:100%;background:var(--accent);border-radius:2px;animation:pfill 2s ease-in-out infinite alternate}
+    .info-box{background:rgba(0,240,255,0.05);border:1px solid rgba(0,240,255,0.15);border-radius:9px;padding:11px 14px;margin-bottom:18px;font-size:.76rem;color:var(--text3);line-height:1.5}
+    .info-box strong{color:var(--cyan)}
+
+    .btn-scan{
+      width:100%;padding:13px;
+      background:linear-gradient(135deg,var(--cyan),rgba(0,190,220,0.9));
+      color:#040c1a;border:none;border-radius:10px;
+      font-size:.88rem;font-weight:900;cursor:pointer;
+      font-family:'Inter',sans-serif;letter-spacing:.04em;
+      box-shadow:0 0 20px rgba(0,240,255,0.3),0 4px 12px rgba(0,0,0,.4);
+      transition:all .2s;margin-top:4px;display:flex;align-items:center;justify-content:center;gap:8px;
+    }
+    .btn-scan:hover{transform:translateY(-2px);box-shadow:0 0 30px rgba(0,240,255,0.5),0 8px 20px rgba(0,0,0,.4)}
+    .btn-scan:disabled{opacity:.5;cursor:not-allowed;transform:none;box-shadow:none}
+
+    /* Progress */
+    .progress-panel{display:none;margin-top:22px;padding-top:20px;border-top:1px solid var(--border)}
+    .p-bar{height:2px;background:rgba(0,240,255,0.1);border-radius:2px;margin-bottom:16px;overflow:hidden}
+    .p-bar-fill{height:100%;background:linear-gradient(90deg,var(--cyan),rgba(0,240,255,0.5));border-radius:2px;animation:pfill 2s ease-in-out infinite alternate}
     @keyframes pfill{from{width:8%}to{width:92%}}
-    .p-label{font-size:.78rem;color:var(--text2);margin-bottom:12px;font-family:'JetBrains Mono',monospace}
+    .p-label{font-size:.75rem;color:var(--text2);margin-bottom:14px;font-family:'JetBrains Mono',monospace}
     .step-list{list-style:none}
-    .step-list li{display:flex;align-items:center;gap:8px;padding:6px 0;font-size:.8rem;color:var(--dim);border-bottom:1px solid rgba(0,255,136,.04)}
+    .step-list li{display:flex;align-items:center;gap:9px;padding:7px 0;font-size:.76rem;color:var(--text2);border-bottom:1px solid rgba(0,240,255,0.04)}
     .step-list li:last-child{border-bottom:none}
-    .step-list li.done{color:var(--accent)}
-    .step-list li.active{color:var(--text)}
-    .spin{width:11px;height:11px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0}
+    .step-list li.done{color:var(--green)}
+    .step-list li.active{color:var(--cyan)}
+    .spin{width:11px;height:11px;border:2px solid rgba(0,240,255,0.15);border-top-color:var(--cyan);border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0}
     @keyframes spin{to{transform:rotate(360deg)}}
     .step-icon{width:11px;text-align:center;flex-shrink:0;font-size:.8rem}
   </style>
 </head>
 <body>
+<div class="void-bg"></div>
+<div class="grid"></div>
+
 <aside class="sb">
-  <div class="sb-logo">
-    <div class="sb-icon"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
-    <div class="sb-brand"><strong>RootSentry</strong><span>detection engine</span></div>
-  </div>
-  <nav class="sb-nav">
-    <div class="sb-section">Main</div>
-    <a href="/" class="sb-item"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>Dashboard</a>
-    <a href="/scan" class="sb-item active"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" d="m21 21-4.35-4.35"/></svg>New Scan</a>
-    <a href="/analytics" class="sb-item">
-      <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M3 3v18h18"/><path stroke-linecap="round" d="M7 16l4-4 4 4 4-6"/></svg>
-      Analytics
-    </a>
-    <a href="/schedules" class="sb-item">
-      <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path stroke-linecap="round" d="M16 2v4M8 2v4M3 10h18"/><circle cx="12" cy="16" r="2"/></svg>
-      Schedules
-    </a>
-    <div class="sb-section">System</div>
-    <a href="/logs" class="sb-item"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M4 6h16M4 12h16M4 18h10"/></svg>Logs</a>
-  </nav>
-  <div class="sb-foot">
-    <div class="sb-status"><span class="sb-dot"></span>Engine online</div>
-    <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
-      <div style="font-size:.66rem;color:var(--dim);margin-bottom:6px;font-family:'JetBrains Mono',monospace">
-        Signed in as <span style="color:var(--text2)">{{ session.get('username','admin') }}</span>
-      </div>
-      <a href="/logout" style="display:flex;align-items:center;gap:7px;font-size:.76rem;color:var(--dim);text-decoration:none;padding:5px 8px;border-radius:6px;border:1px solid var(--border);transition:all .15s;font-weight:600" onmouseover="this.style.color='var(--danger)';this.style.borderColor='rgba(255,79,79,.3)'" onmouseout="this.style.color='var(--dim)';this.style.borderColor='var(--border)'">
-        <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>
-        Sign Out
-      </a>
+  <div class="sb-inner">
+    <div class="sb-logo">
+      <div class="sb-icon"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path stroke-linecap="round" d="m9 12 2 2 4-4"/></svg></div>
+      <div class="sb-brand"><strong>RootSentry</strong><span>DETECTION ENGINE</span></div>
+    </div>
+    <nav class="sb-nav">
+      <div class="sb-section">Command Center</div>
+      <a href="/" class="sb-item"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>Dashboard</a>
+      <a href="/scan" class="sb-item active"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" d="m21 21-4.35-4.35"/></svg>New Scan</a>
+      <a href="/analytics" class="sb-item"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M3 3v18h18"/><path stroke-linecap="round" d="M7 16l4-4 4 4 4-6"/></svg>Analytics</a>
+      <a href="/schedules" class="sb-item"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path stroke-linecap="round" d="M16 2v4M8 2v4M3 10h18"/><circle cx="12" cy="16" r="2"/></svg>Schedules</a>
+      <div class="sb-section">System</div>
+      <a href="/logs" class="sb-item"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M4 6h16M4 12h16M4 18h10"/></svg>Live Logs</a>
+    </nav>
+    <div class="sb-foot">
+      <div class="sb-status"><span class="sb-dot"></span>ENGINE ONLINE</div>
+      <div class="user-tag">OPERATOR: <span>{{ session.get('username','admin') }}</span></div>
+      <a href="/logout" class="logout-btn"><svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>Sign Out</a>
     </div>
   </div>
 </aside>
 
 <div class="main">
-  <header class="topbar">
-    <div><div class="topbar-title">New Scan</div><div class="topbar-sub">Configure and launch a detection scan</div></div>
-  </header>
+  <div class="topbar">
+    <div><h1>Launch Scan</h1><p>ROOTSENTRY · CONFIGURE AND DEPLOY ROOTKIT DETECTION</p></div>
+  </div>
+
   <div class="content">
     <div class="form-wrap">
       <div class="form-heading">
-        <h1>New Scan</h1>
-        <p>Run rootkit detection on a local or remote Linux system</p>
+        <h2>New Detection Scan</h2>
+        <p>Run full rootkit detection on a local or remote Linux system</p>
       </div>
       <div class="form-card">
         <div class="tabs">
-          <button class="tab active" id="tab-local" onclick="setMode('local')">Local Scan</button>
-          <button class="tab" id="tab-remote" onclick="setMode('remote')">Remote (SSH)</button>
+          <button class="tab active" id="tab-local" onclick="setMode('local')">⬡ Local Scan</button>
+          <button class="tab" id="tab-remote" onclick="setMode('remote')">⬡ Remote (SSH)</button>
         </div>
-        <div class="info-box" id="info-box">Scanning the <strong style="color:var(--accent)">local machine</strong>. Uses stat brute-force, /proc analysis and hook detection.</div>
+        <div class="info-box" id="info-box">Scanning the <strong>local machine</strong>. Uses stat brute-force, /proc analysis, and kernel hook detection.</div>
         <form id="scan-form">
           <div id="remote-fields" class="remote-fields">
-            <div class="form-group"><label>Target Host / IP</label><input type="text" name="host" id="host" placeholder="192.168.1.50"/></div>
-            <div class="form-group"><label>SSH Password</label><input type="password" name="password" id="password" placeholder="••••••••"/></div>
+            <div class="form-group"><label class="form-label">Target Host / IP</label><input type="text" name="host" id="host" placeholder="192.168.1.50 or hostname"/></div>
+            <div class="form-group"><label class="form-label">SSH Password</label><input type="password" name="password" id="password" placeholder="••••••••"/></div>
             <div class="row2">
-              <div class="form-group"><label>SSH User</label><input type="text" name="user" id="user" value="root"/></div>
-              <div class="form-group"><label>Port</label><input type="number" name="port" id="port" value="22" min="1" max="65535"/></div>
+              <div class="form-group"><label class="form-label">SSH User</label><input type="text" name="user" id="user" value="root"/></div>
+              <div class="form-group"><label class="form-label">Port</label><input type="number" name="port" id="port" value="22" min="1" max="65535"/></div>
             </div>
           </div>
-          <button type="submit" class="btn-scan" id="btn-scan">Start Scan</button>
+          <button type="submit" class="btn-scan" id="btn-scan">
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" d="m21 21-4.35-4.35"/></svg>
+            LAUNCH SCAN
+          </button>
         </form>
         <div class="progress-panel" id="progress-panel">
           <div class="p-bar"><div class="p-bar-fill"></div></div>
-          <div class="p-label" id="p-label">Initialising…</div>
-          <ul class="step-list" id="step-list">
+          <div class="p-label" id="p-label">Initialising detection engine…</div>
+          <ul class="step-list">
             <li id="step-proc"><span class="spin"></span>Scanning hidden processes…</li>
-            <li id="step-sys" style="opacity:.4"><span class="step-icon">·</span>Scanning kernel hooks…</li>
-            <li id="step-fs"  style="opacity:.4"><span class="step-icon">·</span>Scanning filesystem…</li>
-            <li id="step-net" style="opacity:.4"><span class="step-icon">·</span>Scanning network sockets…</li>
-            <li id="step-agg" style="opacity:.4"><span class="step-icon">·</span>Aggregating results…</li>
+            <li id="step-sys" style="opacity:.35"><span class="step-icon">·</span>Scanning kernel hooks…</li>
+            <li id="step-fs" style="opacity:.35"><span class="step-icon">·</span>Scanning filesystem…</li>
+            <li id="step-net" style="opacity:.35"><span class="step-icon">·</span>Scanning network sockets…</li>
+            <li id="step-agg" style="opacity:.35"><span class="step-icon">·</span>Aggregating results…</li>
           </ul>
         </div>
       </div>
@@ -166,10 +192,9 @@ function setMode(m){
   document.getElementById('tab-remote').classList.toggle('active',m==='remote');
   document.getElementById('remote-fields').classList.toggle('show',m==='remote');
   document.getElementById('info-box').innerHTML=m==='local'
-    ?'Scanning the <strong style="color:var(--accent)">local machine</strong>. Uses stat brute-force, /proc analysis and hook detection.'
-    :'Scanning a <strong style="color:var(--accent)">remote host</strong> over SSH. Runs the full detection suite on the target.';
+    ?'Scanning the <strong>local machine</strong>. Uses stat brute-force, /proc analysis, and kernel hook detection.'
+    :'Scanning a <strong>remote host</strong> over SSH. Runs the full detection suite on the target.';
 }
-
 const STEPS=[
   {step:'process_scanner',id:'step-proc',label:'Scanning hidden processes…'},
   {step:'syscall_inspector',id:'step-sys',label:'Scanning kernel hooks…'},
@@ -177,10 +202,9 @@ const STEPS=[
   {step:'net_analyzer',id:'step-net',label:'Scanning network sockets…'},
   {step:'aggregating',id:'step-agg',label:'Aggregating results…'},
 ];
-let _last=null,_elapsed=null;
-
+let _last=null;
 function renderStep(s){
-  if(s===_last)return; _last=s;
+  if(s===_last)return;_last=s;
   let ai=STEPS.findIndex(x=>x.step===s);
   if(ai===-1&&s!=='init')ai=STEPS.length-1;
   STEPS.forEach((x,i)=>{
@@ -191,33 +215,29 @@ function renderStep(s){
     else{el.className='';el.style.opacity='.35';el.innerHTML='<span class="step-icon">·</span>'+x.label;}
   });
 }
-
 function poll(id){
   fetch('/scan/'+id+'/json').then(r=>r.json()).then(d=>{
     const step=d.step||'init',status=d.status||'running';
     renderStep(step);
     if(status==='error'){
-      if(_elapsed)clearInterval(_elapsed);
       const lbl=document.getElementById('p-label');
-      lbl.style.color='var(--danger)';
+      lbl.style.color='var(--red)';
       lbl.textContent='✘ Scan failed: '+(d.result&&d.result.error?d.result.error:'Unknown error');
       document.getElementById('btn-scan').disabled=false;
-      document.getElementById('btn-scan').textContent='Start Scan';
-    } else if(status==='running'){
+      document.getElementById('btn-scan').textContent='LAUNCH SCAN';
+    }else if(status==='running'){
       setTimeout(()=>poll(id),1500);
-    } else {
-      if(_elapsed)clearInterval(_elapsed);
+    }else{
       STEPS.forEach(x=>{const el=document.getElementById(x.id);el.className='done';el.style.opacity='1';el.innerHTML='<span class="step-icon">✔</span>'+x.label;});
-      document.getElementById('p-label').textContent='✔ Complete — loading results…';
+      document.getElementById('p-label').textContent='✔ Detection complete — loading results…';
       setTimeout(()=>window.location.href='/scan/'+id,400);
     }
   }).catch(()=>setTimeout(()=>poll(id),2000));
 }
-
 document.getElementById('scan-form').addEventListener('submit',function(e){
   e.preventDefault();
   const btn=document.getElementById('btn-scan');
-  btn.disabled=true; btn.textContent='Scanning…';
+  btn.disabled=true;btn.textContent='Scanning…';
   document.getElementById('progress-panel').style.display='block';
   renderStep('init');
   const payload={user:'root',port:22};
@@ -228,12 +248,9 @@ document.getElementById('scan-form').addEventListener('submit',function(e){
     payload.port=parseInt(document.getElementById('port').value);
   }
   fetch('/scan',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
-    .then(r=>r.json())
-    .then(d=>{if(d.scan_id)poll(d.scan_id);})
-    .catch(err=>{btn.disabled=false;btn.textContent='Start Scan';alert('Error: '+err);});
+    .then(r=>r.json()).then(d=>{if(d.scan_id)poll(d.scan_id);})
+    .catch(err=>{btn.disabled=false;btn.textContent='LAUNCH SCAN';alert('Error: '+err);});
 });
-
-// Auto-prefill host from ?rescan= param
 (function(){const p=new URLSearchParams(window.location.search);const h=p.get('rescan');if(h){setMode('remote');document.getElementById('host').value=h;}})();
 </script>
 </body>
