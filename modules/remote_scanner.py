@@ -352,7 +352,7 @@ def remote_scan(host: str, password: str, user: str = "root",
     )
     risk = _compute_risk(total_threats)
 
-    return {
+    result = {
         "status":        "done",
         "host":          host,
         "risk_level":    risk,
@@ -363,6 +363,14 @@ def remote_scan(host: str, password: str, user: str = "root",
             "fs_checker":        fs_result,
         },
     }
+
+    try:
+        from modules.mitre_mapper import enrich_scan
+        result = enrich_scan(result)
+    except ImportError:
+        pass
+
+    return result
 
 
 # ── CLI entry point ───────────────────────────────────────────────────────────
@@ -407,8 +415,14 @@ def _print_result(result: dict) -> None:
             pid    = finding.get("pid", "")
             path   = finding.get("path", "")
             port   = finding.get("port", "")
-            label  = pid or path or port or ""
-            print(f"       • {label}  {detail}")
+            label  = str(pid or path or port or "")
+            
+            mitre_info = ""
+            if "mitre" in finding and finding["mitre"]:
+                techs = [f"{t['technique_id']} ({t['technique_name']})" for t in finding["mitre"]]
+                mitre_info = f" [MITRE ATT&CK: {', '.join(techs)}]"
+                
+            print(f"       • {label}  {detail}{mitre_info}")
 
     print()
 

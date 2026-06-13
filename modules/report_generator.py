@@ -66,12 +66,24 @@ def _findings_table(findings: list[dict]) -> str:
         )
         detail = _e(f.get("detail", "—"))
         colour = "#ef4444" if any(k in ftype for k in ("rootkit", "hidden")) else "#f59e0b"
+        
+        # Add MITRE info if present
+        mitre_html = ""
+        if f.get("mitre"):
+            techs = [f"{t['technique_id']} ({t['technique_name']})" for t in f["mitre"]]
+            mitre_html = f"""<div style="margin-top:4px;font-size:0.75rem;color:#00ff88">
+              <b>MITRE ATT&CK:</b> {', '.join(_e(t) for t in techs)}
+            </div>"""
+
         rows += f"""
         <tr>
           <td><span style="background:{colour}22;color:{colour};padding:2px 8px;
               border-radius:6px;font-size:0.8rem">{ftype}</span></td>
           <td style="font-family:monospace">{label}</td>
-          <td>{detail}</td>
+          <td>
+            {detail}
+            {mitre_html}
+          </td>
         </tr>"""
     return f"""
     <table style="width:100%;border-collapse:collapse;font-size:0.9rem">
@@ -202,6 +214,59 @@ def _remediation_section(remediation: Optional[dict]) -> str:
     </div>"""
 
 
+def _mitre_section(scan_result: dict) -> str:
+    """Extract and display all mapped MITRE ATT&CK techniques."""
+    mitre_summary = scan_result.get("mitre_summary", {})
+    techniques = mitre_summary.get("techniques", [])
+    if not techniques:
+        return ""
+
+    rows = ""
+    for tech in techniques:
+        tid = _e(tech.get("technique_id", "—"))
+        name = _e(tech.get("technique_name", "—"))
+        tactic = _e(tech.get("tactic", "—"))
+        sev = _e(tech.get("severity", "—")).upper()
+        url = _e(tech.get("url", "#"))
+
+        # Determine severity color
+        sev_color = "#ef4444" if sev in ("CRITICAL", "HIGH") else "#f59e0b"
+
+        rows += f"""
+        <tr>
+          <td style="padding:8px 12px;">
+            <span style="background:#00ff8822;color:#00ff88;padding:2px 8px;
+              border-radius:5px;font-size:.78rem;border:1px solid #00ff8844">{tid}</span>
+          </td>
+          <td style="padding:8px 12px;font-weight:600;color:#f1f5f9">{name}</td>
+          <td style="padding:8px 12px;color:#94a3b8">{tactic}</td>
+          <td style="padding:8px 12px;">
+            <span style="color:{sev_color};font-weight:700;font-size:0.8rem">{sev}</span>
+          </td>
+          <td style="padding:8px 12px;font-family:monospace;font-size:.82rem;">
+            <a href="{url}" target="_blank" style="color:#00ff88;text-decoration:none">{url}</a>
+          </td>
+        </tr>"""
+
+    return f"""
+    <div style="background:#1e293b;border-radius:12px;padding:24px;margin-bottom:20px;
+                border-left:4px solid #00ff88; border: 1px solid #334155;">
+      <h3 style="margin:0 0 16px;color:#f1f5f9">🛡️ MITRE ATT&CK® Mapping</h3>
+      <table style="width:100%;border-collapse:collapse;font-size:.9rem">
+        <thead>
+          <tr style="background:#0f172a;color:#94a3b8;text-align:left">
+            <th style="padding:8px 12px;width:15%">Technique ID</th>
+            <th style="padding:8px 12px;width:30%">Technique Name</th>
+            <th style="padding:8px 12px;width:20%">Tactic</th>
+            <th style="padding:8px 12px;width:10%">Severity</th>
+            <th style="padding:8px 12px;width:25%">Reference URL</th>
+          </tr>
+        </thead>
+        <tbody>{rows}</tbody>
+      </table>
+    </div>"""
+
+
 # ── Main HTML generator ───────────────────────────────────────────────────────
 
 def generate_html_report(scan_result: dict,
@@ -219,6 +284,7 @@ def generate_html_report(scan_result: dict,
         modules_html += _module_section(mod_name, mod)
 
     ioc_html         = _ioc_section(scan_result)
+    mitre_html       = _mitre_section(scan_result)
     remediation_html = _remediation_section(remediation_result)
 
     return f"""<!DOCTYPE html>
@@ -305,6 +371,8 @@ def generate_html_report(scan_result: dict,
   </div>
 
   {ioc_html}
+
+  {mitre_html}
 
   <h2>Detection Results</h2>
   {modules_html}

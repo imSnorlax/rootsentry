@@ -201,6 +201,63 @@
       <div class="sc"><div class="sc-label">Modules Run</div><div class="sc-val">{{ scan.get('modules',{})|length }}</div></div>
     </div>
 
+    <!-- MITRE ATT&CK Mapping Section -->
+    {% if scan.get('mitre_summary') and scan['mitre_summary'].get('techniques') %}
+    <div class="mod-card" style="border-color: var(--ab); margin-bottom: 20px;">
+      <div class="mod-hdr" style="cursor: default; background: var(--ag);">
+        <div class="mod-hdr-left">
+          <span class="mod-status ok" style="background: var(--accent);"></span>
+          <div>
+            <div class="mod-name" style="color: var(--accent); font-weight: 800;">MITRE ATT&CK® Matrix Mapping</div>
+            <div class="mod-summary">Techniques mapped to detected anomalies</div>
+          </div>
+        </div>
+        <div>
+          <span class="threat-chip chip-ok" style="background: var(--ag); border-color: var(--ab); color: var(--accent);">
+            {{ scan['mitre_summary']['techniques']|length }} Technique(s)
+          </span>
+        </div>
+      </div>
+      <div class="mod-body" style="padding-top: 14px;">
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 15%">Technique ID</th>
+              <th style="width: 25%">Technique Name</th>
+              <th style="width: 20%">Tactic</th>
+              <th style="width: 15%">Severity</th>
+              <th style="width: 25%">MITRE Reference URL</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for tech in scan['mitre_summary']['techniques'] %}
+            <tr>
+              <td><span class="ftype ok" style="background: var(--ag); color: var(--accent); font-size: 0.75rem; padding: 2px 8px; border: 1px solid var(--ab);">{{ tech.technique_id }}</span></td>
+              <td style="font-weight: 600; color: #fff;">{{ tech.technique_name }}</td>
+              <td>
+                <span style="background: rgba(0, 255, 136, 0.08); color: var(--text2); padding: 2px 8px; border-radius: 4px; font-size: 0.75rem;">
+                  {{ tech.tactic }}
+                </span>
+              </td>
+              <td>
+                {% set sev = tech.severity|lower %}
+                <span class="rb {% if sev == 'critical' or sev == 'high' %}infected{% else %}suspicious{% endif %}" style="font-size: 0.7rem; padding: 2px 8px;">
+                  {{ tech.severity }}
+                </span>
+              </td>
+              <td>
+                <a href="{{ tech.url }}" target="_blank" style="color: var(--accent); text-decoration: none; font-weight: 600;" class="sl">
+                  {{ tech.url }}
+                </a>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+
     <!-- Detection Modules -->
     {% for mod_name, mod in scan.get('modules',{}).items() %}
     {% set tc = mod.get('threat_count',0) %}
@@ -232,7 +289,18 @@
           <tr>
             <td><span class="ftype">{{ f.get('type','—') }}</span></td>
             <td class="mono">{{ f.get('module') or f.get('pid')|string or f.get('path') or f.get('port')|string or f.get('symbol') or f.get('local_port')|string or '—' }}</td>
-            <td style="color:var(--text2);font-size:.78rem">{{ f.get('detail','—') }}</td>
+            <td style="color:var(--text2);font-size:.78rem">
+              {{ f.get('detail','—') }}
+              {% if f.get('mitre') %}
+                <div style="margin-top: 6px; display: flex; gap: 6px; flex-wrap: wrap;">
+                  {% for t in f['mitre'] %}
+                    <span style="font-size: 0.7rem; background: var(--ag); border: 1px solid var(--ab); color: var(--accent); padding: 1px 6px; border-radius: 4px;" title="{{ t.technique_name }}">
+                      MITRE: {{ t.technique_id }} ({{ t.technique_name }})
+                    </span>
+                  {% endfor %}
+                </div>
+              {% endif %}
+            </td>
           </tr>
           {% endif %}
           {% endfor %}

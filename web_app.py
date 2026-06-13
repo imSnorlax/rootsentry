@@ -98,7 +98,14 @@ def _load_scan(scan_id: str) -> dict | None:
     if not os.path.exists(path):
         return None
     with open(path, encoding="utf-8") as fh:
-        return json.load(fh)
+        data = json.load(fh)
+    if data and "mitre_summary" not in data:
+        from modules.mitre_mapper import enrich_scan
+        try:
+            data = enrich_scan(data)
+        except Exception:
+            pass
+    return data
 
 
 def _list_scans() -> list[dict]:

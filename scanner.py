@@ -33,6 +33,7 @@ from modules.process_scanner  import scan_hidden_processes
 from modules.syscall_inspector import scan_syscalls
 from modules.fs_checker        import scan_filesystem
 from modules.net_analyzer      import scan_network
+from modules.mitre_mapper      import enrich_scan
 
 log = logging.getLogger("rootsentry")
 
@@ -207,6 +208,11 @@ def run_scan(host: Optional[str] = None, password: Optional[str] = None,
         "timestamp":      datetime.datetime.utcnow().isoformat(timespec="seconds") + "Z",
         "modules":        modules_data,
     }
+
+    # ── MITRE ATT&CK enrichment ──────────────────────────────────────────────
+    # Adds a ``mitre`` key to every finding and a top-level ``mitre_summary``.
+    # Done after aggregation so it has no effect on risk scoring.
+    result = enrich_scan(result)
 
     # ── Persist to scans/ so the web dashboard can load it ──────────────────
     from config import SCANS_DIR
