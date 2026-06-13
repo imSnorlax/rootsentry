@@ -92,10 +92,11 @@ ROOTKIT_INDICATOR_PATHS = [
 ]
 
 # ── Paths ────────────────────────────────────────────────────────────────────
-_BASE_DIR   = os.path.dirname(os.path.abspath(__file__))
-REPORTS_DIR = os.path.join(_BASE_DIR, "reports")
-SCANS_DIR   = os.path.join(_BASE_DIR, "scans")    # JSON scan results
-LOG_FILE    = os.path.join(_BASE_DIR, "rootsentry.log")
+_BASE_DIR      = os.path.dirname(os.path.abspath(__file__))
+REPORTS_DIR    = os.path.join(_BASE_DIR, "reports")
+SCANS_DIR      = os.path.join(_BASE_DIR, "scans")    # JSON scan results
+SCHEDULES_FILE = os.path.join(_BASE_DIR, "schedules.json")
+LOG_FILE       = os.path.join(_BASE_DIR, "rootsentry.log")
 
 # ── Flask ────────────────────────────────────────────────────────────────────
 FLASK_HOST  = "0.0.0.0"

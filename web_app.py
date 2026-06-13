@@ -13,6 +13,10 @@ Routes:
   GET  /report/<id>          — Download HTML report
   GET  /logs                 — Log viewer
   GET  /api/scans            — JSON list of all scans (paginated)
+  GET  /schedules            — Scheduled scan management page
+  POST /schedules            — Create a new schedule
+  POST /schedules/<id>/toggle — Enable/disable a schedule
+  DELETE /schedules/<id>     — Delete a schedule
 """
 
 from __future__ import annotations
@@ -31,12 +35,14 @@ from functools import wraps
 from flask import (Flask, render_template, request, jsonify,
                    send_file, abort, redirect, url_for, session, flash)
 from werkzeug.security import check_password_hash
+from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.triggers.interval import IntervalTrigger
 
 # ── Ensure project root on path ───────────────────────────────────────────────
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from config import (FLASK_HOST, FLASK_PORT, FLASK_DEBUG, SECRET_KEY,
-                    SCANS_DIR, REPORTS_DIR, LOG_FILE,
+                    SCANS_DIR, REPORTS_DIR, LOG_FILE, SCHEDULES_FILE,
                     DASHBOARD_USERNAME, DASHBOARD_PASSWORD_HASH)
 from modules.removal_engine   import remediate_scan
 from modules.report_generator import save_report, generate_html_report
@@ -94,6 +100,108 @@ def _evict_old_entries():
                  if v["status"] != "running" and now - v.get("_ts", now) > _TTL_SECONDS]
         for k in stale:
             del _running_remediations[k]
+
+
+# ── Schedule helpers ────────────────────────────────────────────────────────────────
+_sched_lock = threading.Lock()
+
+
+def _load_schedules() -> list[dict]:
+    if not os.path.exists(SCHEDULES_FILE):
+        return []
+    try:
+        with open(SCHEDULES_FILE, encoding="utf-8") as fh:
+            return json.load(fh)
+    except Exception:
+        return []
+
+
+def _save_schedules(schedules: list[dict]) -> None:
+    with open(SCHEDULES_FILE, "w", encoding="utf-8") as fh:
+        json.dump(schedules, fh, indent=2)
+
+
+# ── APScheduler setup ───────────────────────────────────────────────────────────────
+scheduler = BackgroundScheduler(daemon=True)
+
+
+def _run_scheduled_scan(schedule_id: str) -> None:
+    """Called by APScheduler — fires a scan for the given schedule."""
+    with _sched_lock:
+        schedules = _load_schedules()
+        sched = next((s for s in schedules if s["id"] == schedule_id), None)
+
+    if not sched or not sched.get("enabled", True):
+        return
+
+    scan_id = str(uuid.uuid4())[:8]
+    host    = sched.get("host") or None
+    user    = sched.get("user", "root")
+    port    = int(sched.get("port", 22))
+
+    log.info("[Scheduler] Firing scheduled scan %s for schedule %s (target: %s)",
+             scan_id, schedule_id, host or "localhost")
+
+    with _lock:
+        _running_scans[scan_id] = {
+            "status": "running", "step": "init",
+            "result": None, "_ts": time.time()
+        }
+
+    t = threading.Thread(
+        target=_run_scan_thread,
+        args=(scan_id, host, None, user, port),
+        daemon=True
+    )
+    t.start()
+
+    # Update last_run and last_scan_id in the schedule record
+    now_iso = datetime.datetime.utcnow().isoformat(timespec="seconds") + "Z"
+    with _sched_lock:
+        schedules = _load_schedules()
+        for s in schedules:
+            if s["id"] == schedule_id:
+                s["last_run_at"]  = now_iso
+                s["last_scan_id"] = scan_id
+                break
+        _save_schedules(schedules)
+
+
+def _register_schedule(sched: dict) -> None:
+    """Add or replace an APScheduler job for the given schedule dict."""
+    job_id  = f"scan_{sched['id']}"
+    hours   = max(1, int(sched.get("interval_hours", 6)))
+    minutes = int(sched.get("interval_minutes", 0))
+    total_seconds = hours * 3600 + minutes * 60
+    if total_seconds < 60:
+        total_seconds = 60  # minimum 1 minute
+
+    if scheduler.get_job(job_id):
+        scheduler.remove_job(job_id)
+
+    if sched.get("enabled", True):
+        scheduler.add_job(
+            _run_scheduled_scan,
+            trigger=IntervalTrigger(seconds=total_seconds),
+            id=job_id,
+            args=[sched["id"]],
+            replace_existing=True,
+            misfire_grace_time=300,
+        )
+        log.info("[Scheduler] Registered job %s every %dh %dm",
+                 job_id, hours, minutes)
+
+
+def _boot_scheduler() -> None:
+    """Load persisted schedules and start the scheduler."""
+    scheduler.start()
+    for s in _load_schedules():
+        if s.get("enabled", True):
+            try:
+                _register_schedule(s)
+            except Exception as exc:
+                log.warning("[Scheduler] Could not register %s: %s", s["id"], exc)
+    log.info("[Scheduler] Started with %d job(s)", len(scheduler.get_jobs()))
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -431,7 +539,6 @@ def analytics():
 def logs_page():
     lines: list[str] = []
     try:
-        # Bug fix: use absolute LOG_FILE path from config
         with open(LOG_FILE, encoding="utf-8") as fh:
             lines = fh.readlines()[-300:]
     except FileNotFoundError:
@@ -459,10 +566,139 @@ def api_scans():
     })
 
 
+# ── Schedule routes ───────────────────────────────────────────────────────────
+
+@app.route("/schedules", methods=["GET"])
+@login_required
+def schedules_page():
+    with _sched_lock:
+        scheds = _load_schedules()
+    for s in scheds:
+        job = scheduler.get_job(f"scan_{s['id']}")
+        s["_next_run"] = job.next_run_time.isoformat() if (job and job.next_run_time) else None
+    return render_template("schedules.html", schedules=scheds)
+
+
+@app.route("/schedules", methods=["POST"])
+@login_required
+def schedule_create():
+    data  = request.get_json(silent=True) or request.form
+    label = (data.get("label") or "").strip() or "Unnamed Schedule"
+    host  = (data.get("host") or "").strip() or None
+    user  = (data.get("user") or "root").strip()
+    try:
+        port = max(1, min(65535, int(data.get("port") or 22)))
+    except (ValueError, TypeError):
+        port = 22
+    try:
+        interval_hours = max(0, int(data.get("interval_hours") or 0))
+    except (ValueError, TypeError):
+        interval_hours = 6
+    try:
+        interval_minutes = max(0, int(data.get("interval_minutes") or 0))
+    except (ValueError, TypeError):
+        interval_minutes = 0
+
+    # Enforce minimum 5-minute interval
+    if interval_hours == 0 and interval_minutes < 5:
+        interval_minutes = 5
+
+    sched = {
+        "id":               str(uuid.uuid4())[:8],
+        "label":            label,
+        "host":             host,
+        "user":             user,
+        "port":             port,
+        "interval_hours":   interval_hours,
+        "interval_minutes": interval_minutes,
+        "enabled":          True,
+        "created_at":       datetime.datetime.utcnow().isoformat(timespec="seconds") + "Z",
+        "last_run_at":      None,
+        "last_scan_id":     None,
+    }
+
+    with _sched_lock:
+        schedules = _load_schedules()
+        schedules.append(sched)
+        _save_schedules(schedules)
+
+    _register_schedule(sched)
+    log.info("[Scheduler] New schedule created: %s (%s)", sched["id"], label)
+
+    if request.is_json:
+        return jsonify({"status": "created", "schedule": sched})
+    return redirect(url_for("schedules_page"))
+
+
+@app.route("/schedules/<sched_id>/toggle", methods=["POST"])
+@login_required
+def schedule_toggle(sched_id: str):
+    with _sched_lock:
+        schedules = _load_schedules()
+        sched = next((s for s in schedules if s["id"] == sched_id), None)
+        if not sched:
+            return jsonify({"error": "Schedule not found"}), 404
+        sched["enabled"] = not sched.get("enabled", True)
+        _save_schedules(schedules)
+
+    _register_schedule(sched)
+    log.info("[Scheduler] Schedule %s toggled to enabled=%s", sched_id, sched["enabled"])
+    return jsonify({"status": "ok", "enabled": sched["enabled"]})
+
+
+@app.route("/schedules/<sched_id>", methods=["DELETE"])
+@login_required
+def schedule_delete(sched_id: str):
+    with _sched_lock:
+        schedules = _load_schedules()
+        schedules = [s for s in schedules if s["id"] != sched_id]
+        _save_schedules(schedules)
+
+    job_id = f"scan_{sched_id}"
+    if scheduler.get_job(job_id):
+        scheduler.remove_job(job_id)
+
+    log.info("[Scheduler] Schedule %s deleted", sched_id)
+    return jsonify({"status": "deleted", "id": sched_id})
+
+
+@app.route("/schedules/<sched_id>/run-now", methods=["POST"])
+@login_required
+def schedule_run_now(sched_id: str):
+    """Immediately trigger a scheduled scan without waiting for the interval."""
+    with _sched_lock:
+        schedules = _load_schedules()
+        sched = next((s for s in schedules if s["id"] == sched_id), None)
+    if not sched:
+        return jsonify({"error": "Schedule not found"}), 404
+
+    scan_id = str(uuid.uuid4())[:8]
+    host    = sched.get("host") or None
+    user    = sched.get("user", "root")
+    port    = int(sched.get("port", 22))
+
+    with _lock:
+        _running_scans[scan_id] = {
+            "status": "running", "step": "init",
+            "result": None, "_ts": time.time()
+        }
+
+    t = threading.Thread(
+        target=_run_scan_thread,
+        args=(scan_id, host, None, user, port),
+        daemon=True
+    )
+    t.start()
+    log.info("[Scheduler] Manual trigger for schedule %s → scan %s", sched_id, scan_id)
+    return jsonify({"status": "running", "scan_id": scan_id})
+
+
 # ── Entry point ───────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
+    _boot_scheduler()
     print(f"[*] RootSentry dashboard at http://{FLASK_HOST}:{FLASK_PORT}")
     if FLASK_DEBUG:
         print("[!] WARNING: Debug mode is ON — set ROOTSENTRY_DEBUG=1 only in development")
     app.run(host=FLASK_HOST, port=FLASK_PORT, debug=FLASK_DEBUG)
+
