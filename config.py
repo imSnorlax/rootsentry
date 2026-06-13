@@ -107,3 +107,18 @@ SECRET_KEY  = os.environ.get(
     "ROOTSENTRY_SECRET_KEY",
     "rootsentry-change-me-in-production-use-ROOTSENTRY_SECRET_KEY-env"
 )
+
+# ── Dashboard Authentication ──────────────────────────────────────────────────
+# Default credentials: admin / rootsentry
+# To set a custom password hash, run:
+#   python3 -c "from werkzeug.security import generate_password_hash; print(generate_password_hash('yourpassword'))"
+# Then export: ROOTSENTRY_PASSWORD_HASH=<output>
+DASHBOARD_USERNAME = os.environ.get("ROOTSENTRY_USERNAME", "admin")
+
+_pw_hash_env = os.environ.get("ROOTSENTRY_PASSWORD_HASH", "")
+if _pw_hash_env:
+    DASHBOARD_PASSWORD_HASH = _pw_hash_env
+else:
+    # Lazily generate default hash for "rootsentry" on first import
+    from werkzeug.security import generate_password_hash as _gph
+    DASHBOARD_PASSWORD_HASH = _gph("rootsentry")

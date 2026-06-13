@@ -26,15 +26,18 @@ import threading
 import time
 import uuid
 import logging
+from functools import wraps
 
 from flask import (Flask, render_template, request, jsonify,
-                   send_file, abort, redirect, url_for)
+                   send_file, abort, redirect, url_for, session, flash)
+from werkzeug.security import check_password_hash
 
 # ── Ensure project root on path ───────────────────────────────────────────────
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from config import (FLASK_HOST, FLASK_PORT, FLASK_DEBUG, SECRET_KEY,
-                    SCANS_DIR, REPORTS_DIR, LOG_FILE)
+                    SCANS_DIR, REPORTS_DIR, LOG_FILE,
+                    DASHBOARD_USERNAME, DASHBOARD_PASSWORD_HASH)
 from modules.removal_engine   import remediate_scan
 from modules.report_generator import save_report, generate_html_report
 
@@ -55,6 +58,17 @@ log = logging.getLogger("rootsentry")
 
 os.makedirs(SCANS_DIR, exist_ok=True)
 os.makedirs(REPORTS_DIR, exist_ok=True)
+
+# ── Auth helper ────────────────────────────────────────────────────────────────────
+
+def login_required(f):
+    """Redirect to /login if the user is not authenticated."""
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if not session.get("logged_in"):
+            return redirect(url_for("login", next=request.path))
+        return f(*args, **kwargs)
+    return decorated
 
 # ── In-progress scan tracking ─────────────────────────────────────────────────
 # scan_id -> {"status": "running"|"done"|"error", "step": <str>, "result": ..., "_ts": float}
@@ -165,9 +179,43 @@ def _run_scan_thread(scan_id: str, host: str | None,
         log.error("Scan %s failed: %s", scan_id, exc)
 
 
-# ── Routes ────────────────────────────────────────────────────────────────────
+# ── Auth routes ────────────────────────────────────────────────────────────────────
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    error = None
+    if session.get("logged_in"):
+        return redirect(url_for("index"))
+
+    if request.method == "POST":
+        username = (request.form.get("username") or "").strip()
+        password = request.form.get("password") or ""
+
+        if (username == DASHBOARD_USERNAME
+                and check_password_hash(DASHBOARD_PASSWORD_HASH, password)):
+            session["logged_in"] = True
+            session["username"] = username
+            log.info("Successful login from %s", request.remote_addr)
+            next_page = request.args.get("next") or url_for("index")
+            return redirect(next_page)
+        else:
+            log.warning("Failed login attempt from %s", request.remote_addr)
+            error = "Invalid username or password."
+
+    return render_template("login.html", error=error)
+
+
+@app.route("/logout")
+def logout():
+    session.clear()
+    log.info("User logged out from %s", request.remote_addr)
+    return redirect(url_for("login"))
+
+
+# ── Protected routes ────────────────────────────────────────────────────────────────
 
 @app.route("/")
+@login_required
 def index():
     _evict_old_entries()
     scans = _list_scans()
@@ -175,11 +223,13 @@ def index():
 
 
 @app.route("/scan", methods=["GET"])
+@login_required
 def scan_form():
     return render_template("scan.html")
 
 
 @app.route("/scan", methods=["POST"])
+@login_required
 def scan_trigger():
     data     = request.get_json(silent=True) or request.form
     host     = (data.get("host") or "").strip() or None
@@ -212,6 +262,7 @@ def scan_trigger():
 
 
 @app.route("/scan/<scan_id>")
+@login_required
 def scan_status_page(scan_id: str):
     with _lock:
         info = _running_scans.get(scan_id)
@@ -226,6 +277,7 @@ def scan_status_page(scan_id: str):
 
 
 @app.route("/scan/<scan_id>/json")
+@login_required
 def scan_json(scan_id: str):
     with _lock:
         info = _running_scans.get(scan_id)
@@ -243,6 +295,7 @@ def scan_json(scan_id: str):
 
 
 @app.route("/scan/<scan_id>", methods=["DELETE"])
+@login_required
 def scan_delete(scan_id: str):
     """Delete a scan record and its JSON file."""
     path = _scan_path(scan_id)
@@ -259,6 +312,7 @@ def scan_delete(scan_id: str):
 
 
 @app.route("/remediate/<scan_id>", methods=["POST"])
+@login_required
 def remediate(scan_id: str):
     """Start an async remediation job and return immediately."""
     result = _load_scan(scan_id)
@@ -338,6 +392,7 @@ def remediate(scan_id: str):
 
 
 @app.route("/remediate/<scan_id>/status", methods=["GET"])
+@login_required
 def remediate_status(scan_id: str):
     with _rem_lock:
         info = _running_remediations.get(scan_id)
@@ -353,6 +408,7 @@ def remediate_status(scan_id: str):
 
 
 @app.route("/report/<scan_id>")
+@login_required
 def report(scan_id: str):
     result = _load_scan(scan_id)
     if result is None:
@@ -363,6 +419,7 @@ def report(scan_id: str):
 
 
 @app.route("/analytics")
+@login_required
 def analytics():
     _evict_old_entries()
     scans = _list_scans()
@@ -370,6 +427,7 @@ def analytics():
 
 
 @app.route("/logs")
+@login_required
 def logs_page():
     lines: list[str] = []
     try:
@@ -382,6 +440,7 @@ def logs_page():
 
 
 @app.route("/api/scans")
+@login_required
 def api_scans():
     """Paginated scan list. Query params: ?limit=50&offset=0"""
     try:
